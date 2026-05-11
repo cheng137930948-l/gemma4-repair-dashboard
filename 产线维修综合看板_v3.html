@@ -1,0 +1,2404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>产线维修综合看板 - Gemma 4 智能驱动版</title>
+  <script src="gemma_config.js"></script>
+  <script src="gemma_adapter.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+    :root{
+      --bg:#020810;
+      --bg2:#040d18;
+      --panel:rgba(4,14,28,.96);
+      --panel2:rgba(6,18,36,.96);
+      --border:rgba(0,220,255,.12);
+      --border2:rgba(0,220,255,.06);
+      --cyan:#00dcff;
+      --cyan2:#00a8cc;
+      --blue:#0066ff;
+      --blue2:#003a99;
+      --green:#00ff88;
+      --green2:#00cc6a;
+      --yellow:#ffcc00;
+      --red:#ff3366;
+      --purple:#9933ff;
+      --orange:#ff6600;
+      --text:#c8e8ff;
+      --sub:#6090b0;
+      --white:#e8f8ff;
+      --radius:4px;
+      --glow-cyan:0 0 20px rgba(0,220,255,.35),0 0 40px rgba(0,220,255,.15);
+      --glow-green:0 0 20px rgba(0,255,136,.35);
+      --glow-panel:0 0 0 1px rgba(0,220,255,.08),0 20px 60px rgba(0,0,0,.6),inset 0 1px 0 rgba(0,220,255,.06);
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;overflow:hidden;}
+    body{
+      background:#020810;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -20%,rgba(0,80,180,.18),transparent),
+        radial-gradient(ellipse 40% 40% at 0% 100%,rgba(0,40,120,.12),transparent),
+        radial-gradient(ellipse 40% 40% at 100% 80%,rgba(0,120,100,.08),transparent);
+      color:var(--text);
+      font-family:'Rajdhani','Microsoft YaHei','PingFang SC',sans-serif;
+      font-size:14px;
+      position:relative;
+    }
+    body::after{
+      content:'';
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:0;
+      background:
+        radial-gradient(circle at 18% 22%,rgba(0,220,255,.12),transparent 26%),
+        radial-gradient(circle at 82% 16%,rgba(0,255,136,.08),transparent 22%),
+        radial-gradient(circle at 65% 82%,rgba(153,51,255,.08),transparent 24%);
+      opacity:.9;
+    }
+    #fxCanvas{
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      pointer-events:none;
+      z-index:0;
+      opacity:.72;
+      mix-blend-mode:screen;
+    }
+
+    /* ── SCANLINE OVERLAY ── */
+    body::before{
+      content:'';
+      position:fixed;
+      inset:0;
+      background:repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,.06) 2px,
+        rgba(0,0,0,.06) 4px
+      );
+      pointer-events:none;
+      z-index:9998;
+    }
+
+    /* ── CORNER DECORATIONS ── */
+    .corner{
+      position:absolute;
+      width:16px;height:16px;
+      pointer-events:none;
+      filter:drop-shadow(0 0 8px rgba(0,220,255,.35));
+      opacity:.92;
+    }
+    .corner-tl{top:0;left:0;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan);}
+    .corner-tr{top:0;right:0;border-top:2px solid var(--cyan);border-right:2px solid var(--cyan);}
+    .corner-bl{bottom:0;left:0;border-bottom:2px solid var(--cyan);border-left:2px solid var(--cyan);}
+    .corner-br{bottom:0;right:0;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan);}
+
+    /* ── DASHBOARD LAYOUT ── */
+    .dashboard{
+      display:grid;
+      grid-template-columns:560px 1fr;
+      grid-template-rows:52px 1fr;
+      gap:8px;
+      height:100vh;
+      padding:8px;
+      position:relative;
+      z-index:1;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar{
+      grid-column:1 / 3;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 16px 0 14px;
+      position:relative;
+      background:linear-gradient(90deg,rgba(0,40,80,.9) 0%,rgba(2,12,28,.95) 40%,rgba(2,12,28,.95) 60%,rgba(0,60,40,.8) 100%);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--glow-panel),inset 0 0 80px rgba(0,100,200,.04);
+      overflow:hidden;
+    }
+    .topbar::before{
+      content:'';
+      position:absolute;
+      inset:0;
+      background:linear-gradient(90deg,rgba(0,220,255,.04) 0%,transparent 30%,transparent 70%,rgba(0,255,136,.04) 100%);
+      pointer-events:none;
+    }
+    .topbar-left{display:flex;align-items:center;gap:14px;}
+    .topbar-logo{
+      width:32px;height:32px;
+      position:relative;
+      flex-shrink:0;
+    }
+    .topbar-logo svg{width:100%;height:100%;}
+    .topbar-title{
+      font-family:'Orbitron',sans-serif;
+      font-size:16px;
+      font-weight:700;
+      color:var(--cyan);
+      letter-spacing:2px;
+      text-shadow:0 0 20px rgba(0,220,255,.6),0 0 40px rgba(0,220,255,.2);
+      white-space:nowrap;
+    }
+    .topbar-subtitle{
+      font-size:11px;
+      color:var(--sub);
+      letter-spacing:1px;
+      margin-left:6px;
+      padding-left:6px;
+      border-left:1px solid rgba(0,220,255,.2);
+    }
+
+    .topbar-center{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      display:flex;
+      align-items:center;
+      gap:20px;
+    }
+    .topbar-clock{
+      font-family:'Orbitron',sans-serif;
+      font-size:20px;
+      font-weight:600;
+      color:var(--cyan);
+      letter-spacing:3px;
+      text-shadow:0 0 20px rgba(0,220,255,.5);
+    }
+    .topbar-date{
+      font-size:11px;
+      color:var(--sub);
+      letter-spacing:1px;
+    }
+
+    .topbar-actions{display:flex;gap:6px;align-items:center;}
+
+    .btn{
+      height:28px;
+      padding:0 12px;
+      border:1px solid rgba(0,180,220,.3);
+      background:linear-gradient(180deg,rgba(0,40,80,.8),rgba(0,20,50,.8));
+      color:var(--text);
+      cursor:pointer;
+      font-family:'Rajdhani',sans-serif;
+      font-size:12px;
+      font-weight:600;
+      letter-spacing:.5px;
+      border-radius:2px;
+      transition:all .2s;
+      position:relative;
+      overflow:hidden;
+    }
+    .btn::before{
+      content:'';
+      position:absolute;
+      inset:0;
+      background:linear-gradient(180deg,rgba(0,220,255,.06),transparent);
+      opacity:0;
+      transition:opacity .2s;
+    }
+    .btn:hover{
+      border-color:rgba(0,220,255,.6);
+      color:var(--cyan);
+      box-shadow:0 0 12px rgba(0,220,255,.2),inset 0 0 12px rgba(0,220,255,.04);
+    }
+    .btn:hover::before{opacity:1;}
+    .btn-danger{
+      border-color:rgba(255,51,102,.3);
+      background:linear-gradient(180deg,rgba(60,0,20,.8),rgba(40,0,15,.8));
+    }
+    .btn-danger:hover{border-color:rgba(255,51,102,.7);color:var(--red);box-shadow:0 0 12px rgba(255,51,102,.2);}
+    .btn-green{
+      border-color:rgba(0,255,136,.3);
+      background:linear-gradient(180deg,rgba(0,40,20,.8),rgba(0,25,15,.8));
+      color:#4dffa0;
+    }
+    .btn-green:hover{border-color:rgba(0,255,136,.7);color:var(--green);box-shadow:0 0 12px rgba(0,255,136,.2);}
+
+    /* ── PANEL BASE ── */
+    .panel{
+      background:linear-gradient(135deg,rgba(4,14,28,.74),rgba(3,15,30,.56));
+      border:1px solid rgba(0,220,255,.16);
+      border-radius:10px;
+      box-shadow:var(--glow-panel),inset 0 0 0 1px rgba(255,255,255,.02),inset 0 0 48px rgba(0,120,255,.05);
+      backdrop-filter:blur(16px) saturate(140%);
+      -webkit-backdrop-filter:blur(16px) saturate(140%);
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      animation:panelEnter .8s cubic-bezier(.22,.61,.36,1);
+    }
+    .panel::before{
+      content:'';
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(135deg,rgba(255,255,255,.035),transparent 34%),
+        radial-gradient(circle at 0% 0%,rgba(0,220,255,.12),transparent 24%),
+        radial-gradient(circle at 100% 100%,rgba(0,255,136,.08),transparent 20%);
+      pointer-events:none;
+    }
+    .panel::after{
+      content:'';
+      position:absolute;
+      top:0;left:0;right:0;
+      height:1px;
+      background:linear-gradient(90deg,transparent,rgba(0,220,255,.55),transparent);
+      pointer-events:none;
+      box-shadow:0 0 12px rgba(0,220,255,.25);
+    }
+    @keyframes panelEnter{
+      0%{opacity:0;transform:translateY(18px) scale(.985)}
+      100%{opacity:1;transform:translateY(0) scale(1)}
+    }
+
+    .panel-header{
+      height:40px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 12px;
+      background:linear-gradient(180deg,rgba(0,30,60,.9),rgba(0,15,35,.8));
+      border-bottom:1px solid var(--border);
+      flex-shrink:0;
+      position:relative;
+    }
+    .panel-header::before{
+      content:'';
+      position:absolute;
+      left:0;top:8px;bottom:8px;
+      width:3px;
+      background:linear-gradient(180deg,transparent,var(--cyan),transparent);
+    }
+    .panel-title{
+      font-family:'Orbitron',sans-serif;
+      font-size:11px;
+      font-weight:600;
+      color:var(--cyan);
+      letter-spacing:1.5px;
+      text-shadow:0 0 12px rgba(0,220,255,.4);
+      padding-left:10px;
+    }
+    .panel-actions{display:flex;gap:6px;}
+
+    .mini-btn{
+      height:22px;
+      padding:0 8px;
+      border:1px solid rgba(0,160,200,.3);
+      background:rgba(0,30,60,.6);
+      color:var(--sub);
+      cursor:pointer;
+      font-family:'Rajdhani',sans-serif;
+      font-size:11px;
+      font-weight:600;
+      border-radius:2px;
+      letter-spacing:.3px;
+      transition:all .2s;
+    }
+    .mini-btn:hover{border-color:rgba(0,220,255,.5);color:var(--cyan);}
+
+    /* ── ATTENDANCE PANEL ── */
+    .attendance-panel{
+      grid-row:2 / 3;
+      padding:0;
+    }
+    .attendance-body{
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      flex:1;
+      overflow:auto;
+      min-height:0;
+    }
+    .attendance-body::-webkit-scrollbar{width:3px;}
+    .attendance-body::-webkit-scrollbar-track{background:rgba(0,0,0,.2);}
+    .attendance-body::-webkit-scrollbar-thumb{background:rgba(0,220,255,.2);border-radius:2px;}
+
+    .att-metrics{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:6px;
+    }
+    .att-metric-card{
+      background:linear-gradient(135deg,rgba(0,20,45,.9),rgba(0,10,28,.95));
+      border:1px solid var(--border2);
+      border-radius:var(--radius);
+      padding:14px 18px;
+      cursor:pointer;
+      transition:all .2s;
+      position:relative;
+      overflow:hidden;
+    }
+    .att-metric-card::before{
+      content:'';
+      position:absolute;
+      top:0;left:0;right:0;height:1px;
+      background:linear-gradient(90deg,transparent,currentColor,transparent);
+      opacity:.2;
+    }
+    .att-metric-card:hover{border-color:rgba(0,220,255,.3);box-shadow:0 0 12px rgba(0,220,255,.1);}
+    .att-metric-card .label{font-size:12px;color:var(--sub);letter-spacing:.5px;margin-bottom:6px;}
+    .att-metric-card .value{
+      font-family:'Orbitron',sans-serif;
+      font-size:34px;
+      font-weight:700;
+      line-height:1;
+    }
+    .att-metric-card.day .value{color:var(--yellow);text-shadow:0 0 15px rgba(255,204,0,.4);}
+    .att-metric-card.night .value{color:var(--purple);text-shadow:0 0 15px rgba(153,51,255,.4);}
+    .att-metric-card.total{
+      grid-column:1 / -1;
+    }
+    .att-metric-card.total .value{color:var(--green);font-size:40px;text-shadow:0 0 20px rgba(0,255,136,.4);}
+
+    .att-tabs{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:4px;
+    }
+    .tab-btn{
+      height:32px;
+      border:1px solid rgba(0,140,180,.2);
+      background:rgba(0,20,45,.6);
+      color:var(--sub);
+      border-radius:2px;
+      cursor:pointer;
+      font-family:'Rajdhani',sans-serif;
+      font-size:13px;
+      font-weight:600;
+      letter-spacing:.3px;
+      transition:all .2s;
+    }
+    .tab-btn.active{
+      border-color:rgba(0,220,255,.5);
+      color:var(--cyan);
+      background:rgba(0,100,160,.2);
+      box-shadow:0 0 8px rgba(0,220,255,.15);
+    }
+    .tab-btn:hover:not(.active){border-color:rgba(0,220,255,.3);color:var(--text);}
+
+    .att-pie-wrap{
+      background:linear-gradient(135deg,rgba(0,15,35,.9),rgba(0,8,22,.95));
+      border:1px solid var(--border2);
+      border-radius:var(--radius);
+      padding:6px;
+    }
+    .att-pie-wrap svg{width:100%;height:180px;display:block;}
+    .att-pie-empty{height:180px;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:12px;}
+
+    .attendance-pie-segment,.attendance-pie-legend-item{cursor:pointer;transition:opacity .18s;}
+    .attendance-pie-segment:hover{opacity:.8;}
+
+    .att-list{
+      flex:1;
+      background:linear-gradient(180deg,rgba(0,15,35,.9),rgba(0,8,22,.95));
+      border:1px solid var(--border2);
+      border-radius:var(--radius);
+      overflow:auto;
+      min-height:120px;
+    }
+    .att-list::-webkit-scrollbar{width:3px;}
+    .att-list::-webkit-scrollbar-thumb{background:rgba(0,220,255,.15);}
+
+    .list-row{
+      display:grid;
+      grid-template-columns:1.2fr .8fr 1fr;
+      gap:6px;
+      align-items:center;
+      min-height:36px;
+      padding:0 12px;
+      font-size:13px;
+      color:var(--text);
+      cursor:pointer;
+      border-bottom:1px solid rgba(0,220,255,.04);
+      transition:background .15s;
+    }
+    .list-row:hover{background:rgba(0,80,120,.15);}
+    .list-header{
+      color:var(--sub);
+      cursor:default;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.5px;
+      background:rgba(0,30,60,.6);
+      border-bottom:1px solid rgba(0,220,255,.1) !important;
+    }
+    .list-header:hover{background:rgba(0,30,60,.6);}
+    .list-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--sub);font-size:13px;}
+
+    /* ── MAIN CHART PANEL ── */
+    .chart-main-panel{
+      grid-row:2 / 3;
+    }
+
+    /* Module tabs */
+    .module-tabs-bar{
+      display:flex;
+      gap:0;
+      padding:8px 10px 0;
+      border-bottom:1px solid var(--border);
+      background:rgba(0,15,35,.5);
+      flex-shrink:0;
+    }
+    .module-tab{
+      padding:6px 16px;
+      border:1px solid transparent;
+      border-bottom:none;
+      background:transparent;
+      color:var(--sub);
+      cursor:pointer;
+      font-family:'Rajdhani',sans-serif;
+      font-size:12px;
+      font-weight:600;
+      letter-spacing:.5px;
+      border-radius:2px 2px 0 0;
+      margin-right:2px;
+      position:relative;
+      bottom:-1px;
+      transition:all .2s;
+    }
+    .module-tab.active{
+      border-color:var(--border);
+      border-bottom-color:var(--panel);
+      color:var(--cyan);
+      background:var(--panel);
+      text-shadow:0 0 10px rgba(0,220,255,.4);
+    }
+    .module-tab:hover:not(.active){color:var(--text);border-color:rgba(0,220,255,.1);}
+
+    .module-tab-indicator{
+      position:absolute;
+      top:0;left:4px;right:4px;
+      height:2px;
+      background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+      opacity:0;
+      transition:opacity .2s;
+    }
+    .module-tab.active .module-tab-indicator{opacity:1;}
+
+    /* Chart panel bodies */
+    .chart-panels-container{
+      flex:1;
+      min-height:0;
+      position:relative;
+    }
+    .chart-panel-page{
+      position:absolute;
+      inset:0;
+      padding:10px;
+      display:none;
+      flex-direction:column;
+      gap:8px;
+    }
+    .chart-panel-page.active{display:flex;}
+
+    /* Combined all-modules panel */
+    .all-modules-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      grid-template-rows:1fr 1fr;
+      gap:8px;
+      flex:1;
+      min-height:0;
+    }
+    .module-mini-panel{
+      background:linear-gradient(135deg,rgba(0,18,38,.95),rgba(0,10,25,.98));
+      border:1px solid var(--border2);
+      border-radius:var(--radius);
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      position:relative;
+      overflow:hidden;
+    }
+    .module-mini-panel::after{
+      content:'';
+      position:absolute;
+      top:0;left:0;right:0;height:1px;
+      background:linear-gradient(90deg,transparent,rgba(0,220,255,.2),transparent);
+    }
+    .module-mini-header{
+      height:32px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 8px 0 10px;
+      border-bottom:1px solid var(--border2);
+      flex-shrink:0;
+    }
+    .module-mini-title{
+      font-size:11px;
+      font-weight:700;
+      color:var(--cyan);
+      letter-spacing:.5px;
+    }
+    .module-mini-actions{display:flex;gap:4px;}
+    .chart-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}
+    .chart-wrap svg{display:block;width:100%;height:100%;}
+    .module-mini-footer{
+      height:22px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:0 10px;
+      border-top:1px solid var(--border2);
+      flex-shrink:0;
+    }
+    .footer-item{
+      font-size:10px;
+      color:var(--sub);
+      letter-spacing:.3px;
+    }
+    .footer-item::before{
+      content:'';
+      display:inline-block;
+      width:6px;height:6px;
+      border-radius:50%;
+      margin-right:4px;
+      vertical-align:-1px;
+      background:currentColor;
+    }
+    .footer-cyan{color:#18dbff;}
+    .footer-green{color:#00ff88;}
+    .footer-yellow{color:#ffcc00;}
+
+    .svg-label{
+      fill:rgba(180,210,240,.7);
+      font-size:10px;
+      font-family:'Rajdhani','Microsoft YaHei',sans-serif;
+    }
+    .svg-value{
+      fill:#e8f8ff;
+      font-size:11px;
+      font-weight:700;
+      font-family:'Rajdhani','Microsoft YaHei',sans-serif;
+    }
+    .svg-axis{stroke:rgba(0,180,220,.08);stroke-width:1;}
+    .svg-click{cursor:pointer;}
+    .svg-click:hover{opacity:.88;filter:brightness(1.12);}
+    .list-empty-chart{
+      display:flex;align-items:center;justify-content:center;
+      height:100%;color:var(--sub);font-size:12px;
+    }
+    .topbar,
+    .module-mini-panel,
+    .att-metric-card,
+    .att-pie-wrap,
+    .att-list,
+    .module-tabs-bar,
+    .chart-panel-page,
+    .module-mini-header,
+    .module-mini-footer{
+      backdrop-filter:blur(14px) saturate(130%);
+      -webkit-backdrop-filter:blur(14px) saturate(130%);
+    }
+    .topbar{box-shadow:var(--glow-panel),0 0 0 1px rgba(0,220,255,.06),inset 0 0 80px rgba(0,100,200,.08),inset 0 -30px 60px rgba(0,0,0,.14);}
+    .topbar::after{
+      content:'';
+      position:absolute;
+      inset:auto -15% 0;
+      height:2px;
+      background:linear-gradient(90deg,transparent,rgba(0,220,255,.45),rgba(0,255,136,.18),transparent);
+      filter:blur(1px);
+      animation:headerFlow 6s linear infinite;
+      pointer-events:none;
+    }
+    @keyframes headerFlow{0%{transform:translateX(-20%)}100%{transform:translateX(20%)}}
+    .att-metric-card,
+    .module-mini-panel,
+    .att-pie-wrap,
+    .att-list{
+      background:linear-gradient(135deg,rgba(4,20,42,.62),rgba(3,13,26,.52));
+      border-color:rgba(0,220,255,.12);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.02), inset 0 0 32px rgba(0,150,255,.03), 0 12px 30px rgba(0,0,0,.24);
+    }
+    .att-metric-card:hover,
+    .module-mini-panel:hover,
+    .att-pie-wrap:hover,
+    .att-list:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.03), inset 0 0 44px rgba(0,180,255,.05), 0 18px 38px rgba(0,0,0,.34), 0 0 18px rgba(0,220,255,.08);transform:translateY(-1px);}
+    .att-metric-card .value,
+    .topbar-clock,
+    #attendancePieWrap text[fill="#00dcff"]{animation:softBreath 2.8s ease-in-out infinite;}
+    @keyframes softBreath{0%,100%{filter:drop-shadow(0 0 0 rgba(0,220,255,0));opacity:.96}50%{filter:drop-shadow(0 0 9px rgba(0,220,255,.38));opacity:1}}
+    .chart-wrap::after,
+    .att-pie-wrap::after{
+      content:'';
+      position:absolute;
+      left:0;right:0;
+      height:32px;
+      background:linear-gradient(180deg,transparent,rgba(0,220,255,.15),transparent);
+      filter:blur(1px);
+      animation:dataSweep 7.2s linear infinite;
+      pointer-events:none;
+      opacity:.7;
+    }
+    .att-pie-wrap{position:relative;overflow:hidden;}
+    .chart-wrap::after{top:-18%;}
+    .att-pie-wrap::after{top:-24%;}
+    @keyframes dataSweep{0%{transform:translateY(-25%)}100%{transform:translateY(520%)}}
+    @keyframes spinOrbit{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .chart-wrap::before,
+    .att-list::before{
+      content:'';
+      position:absolute;
+      inset:0;
+      background-image:linear-gradient(rgba(0,220,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,255,.025) 1px,transparent 1px);
+      background-size:32px 32px;
+      pointer-events:none;
+      opacity:.4;
+    }
+    .module-tab{letter-spacing:1.2px;}
+    .panel-title,.topbar-title,.module-mini-title{letter-spacing:1.6px;}
+    .list-row{position:relative;}
+    .list-row:hover{background:linear-gradient(90deg,rgba(0,95,145,.20),rgba(0,70,110,.10));box-shadow:inset 3px 0 0 rgba(0,220,255,.4);}
+    .chart-node:hover text,
+    .chart-node:hover circle,
+    .chart-node:hover rect{filter:brightness(1.16) drop-shadow(0 0 8px rgba(0,220,255,.38));}
+
+    /* ── DETAIL SOURCE HIDDEN ── */
+    .source-line,.module-topline,.wip-badge,.attendance-mini-note,.help-box{display:none !important;}
+
+    /* ── STATUS INDICATORS ── */
+    .status-dot{
+      display:inline-block;
+      width:6px;height:6px;
+      border-radius:50%;
+      animation:pulse-dot 2s ease-in-out infinite;
+    }
+    .status-dot.online{background:var(--green);box-shadow:0 0 6px var(--green);}
+    .status-dot.offline{background:var(--red);}
+    @keyframes pulse-dot{
+      0%,100%{opacity:1;}
+      50%{opacity:.4;}
+    }
+
+    /* ── MODALS ── */
+    .modal-mask{
+      position:fixed;
+      inset:0;
+      background:rgba(0,5,15,.75);
+      backdrop-filter:blur(6px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      padding:20px;
+    }
+    .modal-mask.show{display:flex;}
+
+    .modal{
+      width:min(880px,96vw);
+      max-height:92vh;
+      overflow:auto;
+      background:linear-gradient(160deg,rgba(4,14,30,.98),rgba(2,8,20,.98));
+      border:1px solid rgba(0,180,220,.25);
+      border-radius:6px;
+      box-shadow:0 0 0 1px rgba(0,220,255,.05),0 30px 80px rgba(0,0,0,.7);
+      padding:20px;
+      position:relative;
+    }
+    .modal::before{
+      content:'';
+      position:absolute;
+      top:0;left:0;right:0;height:2px;
+      background:linear-gradient(90deg,transparent,rgba(0,220,255,.5),transparent);
+    }
+    .modal h3{
+      margin:0 0 14px;
+      font-family:'Orbitron',sans-serif;
+      font-size:14px;
+      font-weight:700;
+      color:var(--cyan);
+      letter-spacing:2px;
+      text-shadow:0 0 20px rgba(0,220,255,.4);
+    }
+
+    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;}
+    .field label{color:var(--sub);font-size:11px;letter-spacing:.5px;font-weight:600;}
+    .field input,.field select,.field textarea{
+      width:100%;
+      border:1px solid rgba(0,120,180,.2);
+      border-radius:3px;
+      background:rgba(0,10,25,.9);
+      color:var(--text);
+      padding:8px 10px;
+      outline:none;
+      font-family:'Rajdhani','Microsoft YaHei',sans-serif;
+      font-size:13px;
+      transition:border-color .2s;
+    }
+    .field input:focus,.field select:focus,.field textarea:focus{
+      border-color:rgba(0,220,255,.4);
+      box-shadow:0 0 8px rgba(0,220,255,.1);
+    }
+    .field textarea{
+      min-height:110px;
+      resize:vertical;
+      font-family:Consolas,monospace;
+      font-size:11px;
+      line-height:1.55;
+    }
+    .full{grid-column:1 / -1;}
+    .hint{
+      color:var(--sub);
+      font-size:11px;
+      line-height:1.7;
+      background:rgba(0,10,25,.6);
+      border:1px solid rgba(0,100,140,.15);
+      border-radius:3px;
+      padding:10px 12px;
+    }
+    .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
+
+    .detail-sub{color:var(--sub);font-size:12px;margin:-4px 0 12px;line-height:1.6;}
+    .detail-table{
+      width:100%;border-collapse:collapse;
+      border:1px solid rgba(0,150,200,.15);
+      border-radius:4px;
+      overflow:hidden;
+    }
+    .detail-table th,.detail-table td{
+      border-bottom:1px solid rgba(0,150,200,.08);
+      padding:8px 10px;
+      text-align:left;
+      font-size:12px;
+      color:var(--text);
+    }
+    .detail-table th{
+      color:var(--sub);
+      background:rgba(0,25,50,.6);
+      font-weight:700;
+      font-size:11px;
+      letter-spacing:.3px;
+    }
+
+    .tag{
+      display:inline-flex;align-items:center;
+      padding:2px 8px;border-radius:2px;font-size:11px;font-weight:700;
+      border:1px solid rgba(0,150,200,.2);
+    }
+    .tag.red{color:var(--red);border-color:rgba(255,51,102,.25);background:rgba(40,0,15,.5);}
+    .tag.green{color:var(--green);border-color:rgba(0,255,136,.2);background:rgba(0,20,10,.5);}
+    .tag.yellow{color:var(--yellow);border-color:rgba(255,204,0,.2);background:rgba(30,20,0,.5);}
+
+    /* Bind card */
+    .source-stack{display:flex;flex-direction:column;gap:10px;}
+    .bind-card{
+      border:1px solid rgba(0,150,200,.2);
+      background:rgba(0,12,28,.8);
+      border-radius:4px;
+      padding:12px;
+    }
+    .bind-title{font-size:11px;color:var(--cyan);margin-bottom:8px;font-weight:700;letter-spacing:.5px;}
+    .bind-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .bind-name{
+      flex:1;min-width:200px;height:36px;
+      border-radius:3px;border:1px solid rgba(0,120,180,.2);
+      background:rgba(0,8,20,.9);color:var(--text);padding:0 10px;
+      font-family:'Rajdhani','Microsoft YaHei',sans-serif;
+    }
+    .bind-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+    .action-btn{
+      border:1px solid rgba(0,120,180,.25);border-radius:3px;
+      padding:7px 14px;font-size:12px;font-weight:700;font-family:'Rajdhani',sans-serif;
+      color:var(--text);background:rgba(0,25,55,.8);cursor:pointer;
+      letter-spacing:.3px;transition:all .2s;
+    }
+    .action-btn:hover{border-color:rgba(0,220,255,.4);color:var(--cyan);}
+    .action-btn.primary{background:rgba(0,40,100,.8);border-color:rgba(0,100,200,.3);color:#80c4ff;}
+    .action-btn.success{background:rgba(0,35,20,.8);border-color:rgba(0,180,100,.3);color:#60d098;}
+    .action-btn.danger{background:rgba(40,0,15,.8);border-color:rgba(200,50,80,.3);color:#ff8099;}
+    .field-note{margin-top:6px;font-size:11px;color:var(--sub);line-height:1.6;}
+    .field-note strong{color:var(--text);}
+    .field.hidden-by-mode{display:none !important;}
+
+    /* ── CHART AREA: 1x2 combined layout ── */
+    .all-modules-grid{
+      display:grid;
+      grid-template-columns:1fr;
+      grid-template-rows:1fr 1fr;
+      gap:8px;
+      flex:1;
+      min-height:0;
+    }
+
+    @media (max-width:1100px){
+      .dashboard{grid-template-columns:1fr;grid-template-rows:52px auto auto;height:auto;overflow:auto;}
+      .dashboard>*:nth-child(2){grid-row:auto;}
+      body,html{overflow:auto;}
+      .all-modules-grid{grid-template-columns:1fr;grid-template-rows:repeat(2,220px);}
+      .modal-grid{grid-template-columns:1fr;}
+    }
+
+    /* ── HEX GRID BACKGROUND ── */
+    .hex-bg{
+      position:absolute;inset:0;pointer-events:none;opacity:.03;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52'%3E%3Cpolygon points='30,2 56,16 56,36 30,50 4,36 4,16' fill='none' stroke='%2300dcff' stroke-width='1'/%3E%3C/svg%3E");
+      background-size:60px 52px;
+    }
+
+    /* ── ANIMATE IN ── */
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+    .panel{animation:fadeInUp .4s ease both;}
+    .attendance-panel{animation-delay:.05s;}
+    .chart-main-panel{animation-delay:.1s;}
+
+    /* ── SHARED DOCS MODAL ── */
+    #sharedDocsMask .modal{width:min(800px,96vw);}
+    #sharedDocsTable{width:100%;border-collapse:collapse;font-size:12px;}
+    #sharedDocsTable th{
+      padding:7px 10px;text-align:left;font-weight:700;
+      color:var(--sub);border-bottom:1px solid rgba(0,150,200,.15);
+      font-size:10px;letter-spacing:.5px;
+    }
+
+    /* ── NEON GLOW PULSE ── */
+    @keyframes neon-border{
+      0%,100%{border-color:rgba(0,220,255,.12);}
+      50%{border-color:rgba(0,220,255,.22);}
+    }
+    .panel{animation:fadeInUp .4s ease both, neon-border 4s ease-in-out infinite;}
+
+    /* scrollbar for modal */
+    .modal::-webkit-scrollbar{width:4px;}
+    .modal::-webkit-scrollbar-track{background:rgba(0,0,0,.2);}
+    .modal::-webkit-scrollbar-thumb{background:rgba(0,180,220,.2);border-radius:2px;}
+
+    /* Attendance row link */
+    .attendance-row a{color:var(--cyan);text-decoration:none;}
+    .attendance-row a:hover{text-decoration:underline;}
+
+    /* ── ORG CHART (inline in attendance panel) ── */
+    .org-section{
+      margin-top:2px;
+      background:linear-gradient(135deg,rgba(0,15,35,.92),rgba(0,8,22,.96));
+      border:1px solid rgba(0,220,255,.1);
+      border-radius:var(--radius);
+      overflow:hidden;
+    }
+    .org-section-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:6px 10px;
+      background:linear-gradient(90deg,rgba(0,30,60,.9),rgba(0,15,35,.8));
+      border-bottom:1px solid rgba(0,220,255,.08);
+      cursor:pointer;
+      user-select:none;
+    }
+    .org-section-header:hover{background:linear-gradient(90deg,rgba(0,40,80,.9),rgba(0,20,45,.8));}
+    .org-section-title{
+      font-family:'Orbitron',sans-serif;
+      font-size:9.5px;font-weight:600;
+      color:var(--cyan);letter-spacing:1.5px;
+    }
+    .org-section-meta{font-size:10px;color:var(--sub);display:flex;align-items:center;gap:8px;}
+    .org-toggle-icon{font-size:9px;color:var(--sub);transition:transform .25s;}
+    .org-toggle-icon.open{transform:rotate(180deg);}
+
+    .org-body{
+      padding:8px 6px 6px;
+      display:none;
+      flex-direction:column;
+      gap:5px;
+    }
+    .org-body.open{display:flex;}
+
+    /* top-chain: 制造中心 → 维修服务部 → 课长 */
+
+    /* group grid */
+    .org-groups{
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:4px;
+    }
+    .org-group{
+      display:flex;flex-direction:column;gap:3px;
+    }
+    .org-group-label{
+      font-size:8px;font-weight:700;
+      padding:2px 4px;border-radius:2px;
+      text-align:center;letter-spacing:.5px;
+      border:1px solid;
+    }
+    .gl-cyan{color:var(--cyan);border-color:rgba(0,220,255,.25);background:rgba(0,220,255,.07);}
+    .gl-purple{color:var(--purple);border-color:rgba(153,51,255,.25);background:rgba(153,51,255,.07);}
+    .gl-teal{color:#2dd4bf;border-color:rgba(45,212,191,.25);background:rgba(45,212,191,.07);}
+    .gl-amber{color:var(--yellow);border-color:rgba(255,204,0,.25);background:rgba(255,204,0,.06);}
+    .gl-green{color:var(--green);border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.06);}
+
+    .org-node{
+      background:linear-gradient(135deg,rgba(0,18,40,.92),rgba(0,10,26,.95));
+      border:1px solid rgba(0,220,255,.1);
+      border-radius:3px;
+      padding:4px 5px;
+      transition:border-color .18s,box-shadow .18s;
+    }
+    .org-node.org-absent{
+      border:2px solid var(--red) !important;
+      box-shadow:0 0 10px rgba(255,51,102,.35);
+    }
+    .org-node .on-name{
+      font-size:9px;font-weight:600;color:var(--text);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      display:block;
+    }
+    .org-node.org-absent .on-name{color:var(--red);}
+    .org-node .on-role{font-size:7.5px;color:var(--sub);margin-top:1px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .org-node.org-absent .on-role{color:rgba(255,51,102,.65);}
+    .org-node .on-status{font-size:7px;margin-top:2px;padding:1px 5px;border-radius:7px;font-weight:600;display:inline-block;}
+  </style>
+</head>
+<body>
+  <canvas id="fxCanvas"></canvas>
+  <div class="dashboard">
+
+    <!-- ══ TOP BAR ══ -->
+    <div class="topbar">
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="topbar-left">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="16,2 28,8 28,24 16,30 4,24 4,8" fill="none" stroke="rgba(0,220,255,.5)" stroke-width="1.2"/>
+            <polygon points="16,6 24,10 24,22 16,26 8,22 8,10" fill="none" stroke="rgba(0,220,255,.3)" stroke-width=".8"/>
+            <circle cx="16" cy="16" r="3" fill="rgba(0,220,255,.8)"/>
+            <line x1="16" y1="6" x2="16" y2="10" stroke="rgba(0,220,255,.6)" stroke-width="1.2"/>
+            <line x1="16" y1="22" x2="16" y2="26" stroke="rgba(0,220,255,.6)" stroke-width="1.2"/>
+            <line x1="8" y1="10" x2="11" y2="12" stroke="rgba(0,220,255,.4)" stroke-width="1"/>
+            <line x1="21" y1="12" x2="24" y2="10" stroke="rgba(0,220,255,.4)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div>
+          <div class="topbar-title">Gemma 4 维修数据智能看板</div>
+          <div class="topbar-subtitle">SMART MAINTENANCE · DATA ENGINE</div>
+        </div>
+      </div>
+
+      <div class="topbar-center">
+        <div style="text-align:center;">
+          <div class="topbar-clock" id="topClock">--:--:--</div>
+          <div class="topbar-date" id="topDate">---- -- --</div>
+        </div>
+        <span class="status-dot online" id="sysStatus"></span>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn btn-green" id="btnAIAnalyze" style="border-color:var(--green);box-shadow:0 0 10px rgba(0,255,136,.2);">✨ Gemma 4 智能分析</button>
+        <button class="btn" id="btnRefreshAll">全部刷新</button>
+        <button class="btn" id="btnExport">导出</button>
+        <button class="btn" id="btnImport">导入</button>
+        <button class="btn btn-green" id="btnSharedDocs">📂 共享映射</button>
+        <button class="btn btn-danger" id="btnReset">重置</button>
+      </div>
+    </div>
+
+    <!-- ══ ATTENDANCE PANEL ══ -->
+    <aside class="panel attendance-panel">
+      <div class="hex-bg"></div>
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="panel-header">
+        <div class="panel-title" id="attendancePanelTitle">产线维修出勤</div>
+        <div class="panel-actions">
+          <button class="mini-btn" data-action="refresh" data-key="attendance">刷新</button>
+          <button class="mini-btn" data-action="config" data-key="attendance">配置</button>
+        </div>
+      </div>
+      <div class="attendance-body">
+        <!-- metrics -->
+        <div class="att-metrics">
+          <div class="att-metric-card day" id="dayCard">
+            <div class="label">白班</div>
+            <div class="value" id="attendanceDayShift">0</div>
+          </div>
+          <div class="att-metric-card night" id="nightCard">
+            <div class="label">夜班</div>
+            <div class="value" id="attendanceNightShift">0</div>
+          </div>
+          <div class="att-metric-card total" id="totalCard">
+            <div class="label">今日出勤合计</div>
+            <div class="value" id="attendanceTotal">0 / 0</div>
+          </div>
+        </div>
+
+        <!-- tabs -->
+        <div class="att-tabs" id="attendanceTabs">
+          <button class="tab-btn active" data-tab="present">在岗(0)</button>
+          <button class="tab-btn" data-tab="absent">未出勤(0)</button>
+          <button class="tab-btn" data-tab="late">迟到(0)</button>
+          <button class="tab-btn" data-tab="leave">请假(0)</button>
+        </div>
+
+        <!-- pie -->
+        <div class="att-pie-wrap">
+          <div id="attendancePieWrap"><div class="att-pie-empty">暂无数据</div></div>
+        </div>
+
+        <!-- ORG CHART inline — 固定展开，不可折叠 -->
+        <div class="org-section">
+          <div class="org-section-header" style="cursor:default;">
+            <div class="org-section-title">◈ 组织架构 · 实时出勤</div>
+            <div class="org-section-meta">
+              <span id="orgAbsentBadge" style="display:none;color:var(--red);font-size:10px;font-weight:700;">● 有人未到</span>
+              <span id="orgStats" style="font-size:10px;">21人</span>
+            </div>
+          </div>
+          <div class="org-body open" id="orgBody">
+            <div class="org-leader">
+              <div class="org-leader-info">
+                <div class="org-leader-name">Demo Manager</div>
+                <div class="org-leader-role">产线维修课 · 课长</div>
+              </div>
+              <span class="org-leader-status cn-on" data-orgname="Demo Manager">在岗</span>
+            </div>
+            <div class="org-groups">
+              <div class="org-group">
+                <div class="org-group-label gl-cyan">线修与物料管理</div>
+                <div class="org-node" data-orgname="User1"><span class="on-name">User1</span><span class="on-role">领班</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User2"><span class="on-name">User2</span><span class="on-role">技术员</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User3"><span class="on-name">User3</span><span class="on-role">助理工程师</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User4"><span class="on-name">User4</span><span class="on-role">技术员</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User5"><span class="on-name">User5</span><span class="on-role">作业员</span><span class="on-status cn-on">在岗</span></div>
+              </div>
+              <div class="org-group">
+                <div class="org-group-label gl-purple">专案维修</div>
+                <div class="org-node" data-orgname="User6"><span class="on-name">User6</span><span class="on-role">高级工程师</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User7"><span class="on-name">User7</span><span class="on-role">助理工程师</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User8"><span class="on-name">User8</span><span class="on-role">工程师</span><span class="on-status cn-on">在岗</span></div>
+              </div>
+              <div class="org-group">
+                <div class="org-group-label gl-teal">电子板卡维修</div>
+                <div class="org-node" data-orgname="User9"><span class="on-name">User9</span><span class="on-role">工程管理师</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User10"><span class="on-name">User10</span><span class="on-role">技术员</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User11"><span class="on-name">User11</span><span class="on-role">工程师</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User12"><span class="on-name">User12</span><span class="on-role">工程师</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User13"><span class="on-name">User13</span><span class="on-role">工程师</span><span class="on-status cn-on">在岗</span></div>
+              </div>
+              <div class="org-group">
+                <div class="org-group-label gl-amber">BGA维修</div>
+                <div class="org-node" data-orgname="User14"><span class="on-name">User14</span><span class="on-role">助理管理师</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User15"><span class="on-name">User15</span><span class="on-role">作业员</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User16"><span class="on-name">User16</span><span class="on-role">作业员</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User17"><span class="on-name">User17</span><span class="on-role">作业员</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User18"><span class="on-name">User18</span><span class="on-role">作业员</span><span class="on-status cn-on">在岗</span></div>
+              </div>
+              <div class="org-group">
+                <div class="org-group-label gl-green">系统板卡维修</div>
+                <div class="org-node" data-orgname="User19"><span class="on-name">User19</span><span class="on-role">工程师</span><span class="on-status cn-on">在岗</span></div>
+                <div class="org-node" data-orgname="User20"><span class="on-name">User20</span><span class="on-role">工程师</span><span class="on-status cn-on">在岗</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ══ MAIN CHART PANEL ══ -->
+    <section class="panel chart-main-panel">
+      <div class="hex-bg"></div>
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+
+      <div class="panel-header">
+        <div class="panel-title">产线维修数据中心</div>
+        <div class="panel-actions">
+          <button class="mini-btn" id="btnRefreshModules">刷新全部</button>
+        </div>
+      </div>
+
+      <!-- Module Tab Bar -->
+      <div class="module-tabs-bar" id="moduleTabs">
+        <button class="module-tab active" data-page="all">
+          <div class="module-tab-indicator"></div>
+          综合总览
+        </button>
+        <button class="module-tab" data-page="trend">
+          <div class="module-tab-indicator"></div>
+          近7日产出趋势
+        </button>
+        <button class="module-tab" data-page="personal">
+          <div class="module-tab-indicator"></div>
+          今日个人产出
+        </button>
+      </div>
+
+      <!-- Panels Container -->
+      <div class="chart-panels-container">
+
+        <!-- ALL modules overview page: 上近7日合并 + 下今日个人合并 -->
+        <div class="chart-panel-page active" id="page-all">
+          <div class="all-modules-grid">
+            <!-- 近7日产出趋势（产线+系统合并） -->
+            <div class="module-mini-panel">
+              <div class="module-mini-header">
+                <span class="module-mini-title">Gemma 4 维修中心 · 近7日产出趋势</span>
+                <div class="module-mini-actions">
+                  <button class="mini-btn" id="btnRefreshTrend">刷新</button>
+                  <button class="mini-btn" data-action="config" data-key="module1">配置</button>
+                </div>
+              </div>
+              <div class="chart-wrap" id="chart-combined-trend"><div class="list-empty-chart">当前无数据</div></div>
+              <div class="module-mini-footer" id="footer-combined-trend"></div>
+            </div>
+
+            <!-- 今日个人产出（产线+系统合并） -->
+            <div class="module-mini-panel">
+              <div class="module-mini-header">
+                <span class="module-mini-title">产线维修中心 · 今日个人产出</span>
+                <div class="module-mini-actions">
+                  <button class="mini-btn" id="btnRefreshPersonal">刷新</button>
+                  <button class="mini-btn" data-action="config" data-key="module3">配置</button>
+                </div>
+              </div>
+              <div class="chart-wrap" id="chart-combined-personal"><div class="list-empty-chart">当前无数据</div></div>
+              <div class="module-mini-footer" id="footer-combined-personal"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 近7日趋势全屏页 -->
+        <div class="chart-panel-page" id="page-trend" style="flex-direction:column;">
+          <div style="flex:1;min-height:0;" class="chart-wrap" id="chart-trend-full"></div>
+          <div class="module-mini-footer" id="footer-trend-full"></div>
+        </div>
+
+        <!-- 今日个人全屏页 -->
+        <div class="chart-panel-page" id="page-personal" style="flex-direction:column;">
+          <div style="flex:1;min-height:0;" class="chart-wrap" id="chart-personal-full"></div>
+          <div class="module-mini-footer" id="footer-personal-full"></div>
+        </div>
+
+        <!-- 隐藏原始chart容器，供原有render逻辑写入（不显示） -->
+        <div style="display:none;">
+          <div id="chart-module1"></div><div id="footer-module1"></div>
+          <div id="chart-module2"></div><div id="footer-module2"></div>
+          <div id="chart-module3"></div><div id="footer-module3"></div>
+          <div id="chart-module4"></div><div id="footer-module4"></div>
+          <div id="title-module1"></div><div id="title-module2"></div>
+          <div id="title-module3"></div><div id="title-module4"></div>
+          <div id="tab-title-module1"></div><div id="tab-title-module2"></div>
+          <div id="tab-title-module3"></div><div id="tab-title-module4"></div>
+          <div id="chart-module1-full"></div><div id="footer-module1-full"></div>
+          <div id="chart-module2-full"></div><div id="footer-module2-full"></div>
+          <div id="chart-module3-full"></div><div id="footer-module3-full"></div>
+          <div id="chart-module4-full"></div><div id="footer-module4-full"></div>
+        </div>
+      </div>
+    </section>
+  </div><!-- end .dashboard -->
+
+  <!-- ══ CONFIG MODAL ══ -->
+  <div class="modal-mask" id="configMask">
+    <div class="modal">
+      <h3 id="configTitle">数据接入 / MES 订阅配置</h3>
+      <div class="modal-grid">
+        <div>
+          <div class="field">
+            <label>看板标题</label>
+            <input id="cfgTitle" type="text" />
+          </div>
+          <div class="field" id="chartTypeField">
+            <label>图表类型</label>
+            <select id="cfgChartType">
+              <option value="line">折线图</option>
+              <option value="bar">柱状图</option>
+              <option value="hbar">横向柱状图</option>
+            </select>
+          </div>
+          <div class="source-stack">
+            <div class="field">
+              <label>数据源模式</label>
+              <select id="cfgSourceType">
+                <option value="mock">演示数据</option>
+                <option value="manual-json">手工 JSON / 测试数据</option>
+                <option value="url-json">JSON 订阅地址</option>
+                <option value="url-csv">CSV 订阅地址</option>
+                <option value="bound-file">共享盘 / 本地文件永久绑定</option>
+              </select>
+            </div>
+            <div class="field" id="cfgUrlField">
+              <label>订阅地址 / 导出地址</label>
+              <input id="cfgSourceUrl" type="text" placeholder="https://server/mes/module.json 或 CSV 导出地址" />
+            </div>
+            <div class="bind-card" id="cfgBindCard">
+              <div class="bind-title">共享盘 / MES 文件绑定</div>
+              <div class="bind-row">
+                <input id="cfgBoundFileName" class="bind-name" type="text" readonly placeholder="未绑定文件（支持 CSV / HTML / JSON / XLSX / XLSM）" />
+              </div>
+              <div class="bind-actions">
+                <button class="action-btn" type="button" id="btnPickFileOnce">选择文件</button>
+                <button class="action-btn primary" type="button" id="btnBindSharedFile">🔗 绑定文件（永久）</button>
+                <button class="action-btn" type="button" id="btnPullBoundNow">立即抓取</button>
+                <button class="action-btn danger" type="button" id="btnClearBoundFile">清除绑定</button>
+              </div>
+              <div class="field-note">使用 <strong>Edge / Chrome</strong> 绑定共享盘文件，绑定后永久有效直到主动解绑，支持 csv / html / json / xlsx / xlsm。</div>
+            </div>
+            <div class="field" id="cfgDeptKeywordField">
+              <label>名单来源部门关键字（仅出勤模块）</label>
+              <input id="cfgDeptKeyword" type="text" placeholder="例如：工程处" />
+            </div>
+            <div class="field" id="cfgDetailKeywordField2">
+              <label>名单过滤关键字（仅出勤模块，可留空）</label>
+              <input id="cfgDetailKeyword" type="text" placeholder="例如：产线维修" />
+            </div>
+            <div class="field">
+              <label>刷新间隔（秒）</label>
+              <input id="cfgRefreshSec" type="number" min="0" step="10" />
+            </div>
+            <div class="field" id="cfgWipField">
+              <label>WIP（可留空）</label>
+              <input id="cfgWip" type="text" placeholder="例如：166" />
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="field" id="cfgManualJsonField">
+            <label>手工 JSON / 测试数据</label>
+            <textarea id="cfgManualJson" spellcheck="false"></textarea>
+          </div>
+          <div class="hint">
+            <strong style="color:var(--cyan);">模块标准 JSON：</strong><br>
+            {"labels":["0306","0307"],"values":[7,8],"wip":166,"meta":"订阅A","detailMap":{"0306":[{"name":"张三","qty":5,"model":"KSK"}]}}<br><br>
+            <strong style="color:var(--cyan);">出勤标准 JSON：</strong><br>
+            {"summary":{"dayShiftActual":18,"nightShiftActual":20,"attendanceActual":38,"attendancePlan":42},"present":[...],"absent":[...],"late":[...],"leave":[...]}
+          </div>
+        </div>
+        <div class="field full">
+          <label>MES 接入说明</label>
+          <textarea readonly id="cfgHint"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="btnStopTimer">停止自动刷新</button>
+        <button class="btn" id="btnConfigCancel">取消</button>
+        <button class="btn btn-green" id="btnConfigSave">保存并刷新</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ AI ANALYSIS MODAL ══ -->
+  <div class="modal-mask" id="aiMask">
+    <div class="modal" style="width:min(600px,90vw);">
+      <h3 style="color:var(--cyan);display:flex;align-items:center;gap:10px;">✨ Gemma 4 维修数据智能分析 <span style="font-size:10px;background:rgba(0,220,255,.1);padding:2px 6px;border-radius:4px;color:var(--cyan);">DEMO</span></h3>
+      <div id="aiLoading" style="display:none;padding:20px;text-align:center;">
+        <div class="loading-spinner" style="border:3px solid rgba(0,220,255,.1);border-top:3px solid var(--cyan);border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto 10px;"></div>
+        <p style="color:var(--sub);">Gemma 4 正在深入分析数据...</p>
+      </div>
+      <div id="aiResult" class="ai-content-area" style="padding:10px;line-height:1.6;color:var(--text);font-size:13px;max-height:60vh;overflow-y:auto;white-space:pre-wrap;">
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="btnAIClose">关闭</button>
+        <button class="btn btn-green" id="btnAIRefresh">重新生成分析</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .ai-content-area h3 { color: var(--cyan); margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+    .ai-content-area strong { color: var(--green); }
+    #aiMask.show { display: flex; opacity: 1; }
+  </style>
+
+  <script>
+    async function runGemmaAnalysis() {
+      const mask = document.getElementById('aiMask');
+      const loading = document.getElementById('aiLoading');
+      const result = document.getElementById('aiResult');
+      mask.classList.add('show');
+      loading.style.display = 'block';
+      result.innerHTML = '';
+      try {
+        const report = await window.GemmaAdapter.analyze('integrated', window.state);
+        const htmlReport = report.replace(/### (.*)/g, '<h3>$1</h3>').replace(/\*\* (.*)\*\*/g, '<strong>$1</strong>');
+        result.innerHTML = htmlReport;
+      } catch (e) {
+        result.innerHTML = `<p style="color:var(--red);">分析失败: ${e.message}</p>`;
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+  </script>
+
+  <!-- ══ DETAIL MODAL ══ -->
+  <div class="modal-mask" id="detailMask">
+    <div class="modal">
+      <h3 id="detailTitle">详情</h3>
+      <div class="detail-sub" id="detailSub"></div>
+      <div id="detailContent"></div>
+      <div class="modal-actions">
+        <button class="btn" id="btnDetailClose">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="configImportFile" accept="application/json" style="display:none;" />
+  <input type="file" id="dataBindFile" accept=".json,.csv,.txt,.html,.htm,.xlsx,.xlsm,.xls" style="display:none;" />
+
+  <!-- ══ SHARED DOCS MODAL ══ -->
+  <div class="modal-mask" id="sharedDocsMask">
+    <div class="modal" style="width:min(780px,96vw);">
+      <h3>📂 共享映射文档管理 <span id="syncModeBadge" style="display:inline-block;margin-left:10px;padding:2px 8px;border:1px solid rgba(0,220,255,.22);border-radius:999px;font-size:11px;color:var(--cyan);background:rgba(0,30,60,.35);vertical-align:middle;">SYNC-BRIDGE READY</span></h3>
+      <p style="color:var(--sub);font-size:12px;margin:0 0 14px;line-height:1.8;">
+        为所有模块统一绑定共享盘 / 网络映射文件（XLSX / XLSM / CSV / JSON / HTML）。<br>
+        <strong style="color:var(--green);">绑定即永久有效</strong>，关闭浏览器再打开、嵌入集成看板均自动恢复，<strong>直到你主动点「解绑」</strong>。<br>
+        <strong style="color:var(--yellow);">推荐：</strong>点下方"一键绑定维修明细"，将同一份 XLSX 映射到全部4个图表模块。
+      </p>
+      <div style="margin-bottom:12px;">
+        <button class="btn btn-green" id="btnQuickBindAll">⚡ 一键绑定维修明细（4个图表模块共享同一文件）</button>
+      </div>
+      <table id="sharedDocsTable">
+        <thead>
+          <tr>
+            <th>模块</th>
+            <th>已绑定文件</th>
+            <th>刷新间隔(秒)</th>
+            <th style="text-align:center;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="sharedDocsBody"></tbody>
+      </table>
+      <div style="margin-top:14px;padding:10px 12px;background:rgba(0,10,25,.7);border:1px solid var(--border2);border-radius:3px;color:var(--sub);font-size:11px;line-height:1.8;">
+        <strong style="color:var(--text);">使用说明：</strong><br>
+        • <strong style="color:var(--green);">绑定即永久</strong>：使用 Edge / Chrome，点「绑定文件（永久）」后记录写入 IndexedDB，关闭浏览器再打开自动恢复，<strong>无需重新选文件</strong>。<br>
+        • 只有主动点击「<span style="color:var(--red);">解绑</span>」才会清除绑定，否则终身有效。<br>
+        • 嵌入集成看板（iframe）时，直接在子面板内点绑定，子页面自行弹选文件框，<strong>不再依赖父页代理</strong>，不会超时。<br>
+        • 首次绑定后浏览器可能弹「允许读取文件」权限提示，点允许即可；之后刷新无需再次授权。
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="btnSharedDocsClose">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ══ CLOCK ══
+    function updateClock(){
+      const now = new Date();
+      const pad = n => String(n).padStart(2,'0');
+      document.getElementById('topClock').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      const days=['日','一','二','三','四','五','六'];
+      document.getElementById('topDate').textContent = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} 周${days[now.getDay()]}`;
+    }
+    updateClock();
+    setInterval(updateClock,1000);
+
+    // ══ MODULE TABS (3 tabs) ══
+    function initModuleTabs(){
+      document.querySelectorAll('.module-tab').forEach(tab => {
+        tab.addEventListener('click',()=>{
+          document.querySelectorAll('.module-tab').forEach(t=>t.classList.remove('active'));
+          document.querySelectorAll('.chart-panel-page').forEach(p=>p.classList.remove('active'));
+          tab.classList.add('active');
+          const page = tab.dataset.page;
+          document.getElementById('page-'+page)?.classList.add('active');
+          if(page === 'trend') renderCombinedFull('trend');
+          if(page === 'personal') renderCombinedFull('personal');
+        });
+      });
+    }
+
+    // ══ MERGED CHART RENDERERS (统一维修中心，不区分产线/系统) ══
+
+    // 合并 module1+module2 近7日趋势 → 求和为单一折线
+    function renderCombinedTrend(){
+      const mod1=state.modules.module1, mod2=state.modules.module2;
+      const data1=mod1.currentData||normalizeModuleData(JSON.parse(mod1.manualJson));
+      const data2=mod2.currentData||normalizeModuleData(JSON.parse(mod2.manualJson));
+      const allLabels=[...new Set([...data1.labels,...data2.labels])].sort();
+      const v1map={};data1.labels.forEach((l,i)=>v1map[l]=data1.values[i]||0);
+      const v2map={};data2.labels.forEach((l,i)=>v2map[l]=data2.values[i]||0);
+      const mergedValues=allLabels.map(l=>(v1map[l]||0)+(v2map[l]||0));
+      const mergedDetailMap={};
+      allLabels.forEach(l=>{const rows=[...(data1.detailMap[l]||[]),...(data2.detailMap[l]||[])];if(rows.length)mergedDetailMap[l]=rows;});
+      const merged={labels:allLabels,values:mergedValues,detailMap:mergedDetailMap,meta:'',wip:''};
+      const wrap=document.getElementById('chart-combined-trend');
+      const footer=document.getElementById('footer-combined-trend');
+      if(wrap){wrap.innerHTML=buildSingleLineSvg('trend',merged);bindSingleChartClicks(wrap,merged,'近7日产出趋势');}
+      if(footer){const total=mergedValues.reduce((a,b)=>a+Number(b||0),0);footer.innerHTML=`<span class="footer-item footer-cyan">项目数 ${allLabels.length}</span><span class="footer-item footer-green">累计 ${total}</span><span class="footer-item footer-yellow">刷新 ${new Date().toLocaleTimeString()}</span>`;}
+    }
+
+    // 合并 module3+module4 今日个人 → 所有人合并到一张横条图，按数量降序
+    function renderCombinedPersonal(){
+      const mod3=state.modules.module3, mod4=state.modules.module4;
+      const data3=mod3.currentData||normalizeModuleData(JSON.parse(mod3.manualJson));
+      const data4=mod4.currentData||normalizeModuleData(JSON.parse(mod4.manualJson));
+      const personMap={};const detailMap={};
+      const addP=(labels,values,dm)=>labels.forEach((name,i)=>{personMap[name]=(personMap[name]||0)+(values[i]||0);if(dm[name])detailMap[name]=[...(detailMap[name]||[]),...dm[name]];});
+      addP(data3.labels,data3.values,data3.detailMap);
+      addP(data4.labels,data4.values,data4.detailMap);
+      const sortedNames=Object.keys(personMap).sort((a,b)=>personMap[b]-personMap[a]||a.localeCompare(b,'zh'));
+      const merged={labels:sortedNames,values:sortedNames.map(n=>personMap[n]),detailMap,meta:'',wip:''};
+      const wrap=document.getElementById('chart-combined-personal');
+      const footer=document.getElementById('footer-combined-personal');
+      if(wrap){wrap.innerHTML=buildSingleBarSvg('personal',merged);bindSingleChartClicks(wrap,merged,'今日个人产出');}
+      if(footer){const total=merged.values.reduce((a,b)=>a+Number(b||0),0);footer.innerHTML=`<span class="footer-item footer-cyan">人员数 ${merged.labels.length}</span><span class="footer-item footer-green">累计 ${total}</span><span class="footer-item footer-yellow">刷新 ${new Date().toLocaleTimeString()}</span>`;}
+    }
+
+    function renderCombinedFull(type){
+      if(type==='trend'){
+        const mod1=state.modules.module1,mod2=state.modules.module2;
+        const data1=mod1.currentData||normalizeModuleData(JSON.parse(mod1.manualJson));
+        const data2=mod2.currentData||normalizeModuleData(JSON.parse(mod2.manualJson));
+        const allLabels=[...new Set([...data1.labels,...data2.labels])].sort();
+        const v1map={};data1.labels.forEach((l,i)=>v1map[l]=data1.values[i]||0);
+        const v2map={};data2.labels.forEach((l,i)=>v2map[l]=data2.values[i]||0);
+        const mergedValues=allLabels.map(l=>(v1map[l]||0)+(v2map[l]||0));
+        const mergedDetailMap={};allLabels.forEach(l=>{const rows=[...(data1.detailMap[l]||[]),...(data2.detailMap[l]||[])];if(rows.length)mergedDetailMap[l]=rows;});
+        const merged={labels:allLabels,values:mergedValues,detailMap:mergedDetailMap,meta:'',wip:''};
+        const wrap=document.getElementById('chart-trend-full');
+        const footer=document.getElementById('footer-trend-full');
+        if(wrap){wrap.innerHTML=buildSingleLineSvg('trendf',merged,true);bindSingleChartClicks(wrap,merged,'近7日产出趋势');}
+        if(footer){const total=mergedValues.reduce((a,b)=>a+Number(b||0),0);footer.innerHTML=`<span class="footer-item footer-cyan">项目数 ${allLabels.length}</span><span class="footer-item footer-green">累计 ${total}</span><span class="footer-item footer-yellow">刷新 ${new Date().toLocaleTimeString()}</span>`;}
+      } else {
+        const mod3=state.modules.module3,mod4=state.modules.module4;
+        const data3=mod3.currentData||normalizeModuleData(JSON.parse(mod3.manualJson));
+        const data4=mod4.currentData||normalizeModuleData(JSON.parse(mod4.manualJson));
+        const personMap={};const detailMap={};
+        const addP=(labels,values,dm)=>labels.forEach((name,i)=>{personMap[name]=(personMap[name]||0)+(values[i]||0);if(dm[name])detailMap[name]=[...(detailMap[name]||[]),...dm[name]];});
+        addP(data3.labels,data3.values,data3.detailMap);addP(data4.labels,data4.values,data4.detailMap);
+        const sortedNames=Object.keys(personMap).sort((a,b)=>personMap[b]-personMap[a]||a.localeCompare(b,'zh'));
+        const merged={labels:sortedNames,values:sortedNames.map(n=>personMap[n]),detailMap,meta:'',wip:''};
+        const wrap=document.getElementById('chart-personal-full');
+        const footer=document.getElementById('footer-personal-full');
+        if(wrap){wrap.innerHTML=buildSingleBarSvg('personalf',merged,true);bindSingleChartClicks(wrap,merged,'今日个人产出');}
+        if(footer){const total=merged.values.reduce((a,b)=>a+Number(b||0),0);footer.innerHTML=`<span class="footer-item footer-cyan">人员数 ${merged.labels.length}</span><span class="footer-item footer-green">累计 ${total}</span><span class="footer-item footer-yellow">刷新 ${new Date().toLocaleTimeString()}</span>`;}
+      }
+    }
+
+    function bindSingleChartClicks(wrap,data,title){
+      wrap.querySelectorAll('.chart-node').forEach(node=>{
+        node.addEventListener('click',()=>{
+          const idx=Number(node.dataset.index);
+          const label=data.labels[idx];
+          const value=data.values[idx];
+          const rows=Array.isArray(data.detailMap[label])&&data.detailMap[label].length?data.detailMap[label]:[{label,value}];
+          openDetail({title:`产线维修中心 / ${title} / ${label}`,sub:`数值：${value}`,rows});
+        });
+      });
+    }
+
+    // 单折线图（统一青色）
+    function buildSingleLineSvg(key,data,fullSize=false){
+      const labels=data.labels,values=data.values;
+      if(!labels.length) return '<div class="list-empty-chart">当前无数据</div>';
+      const width=900,height=fullSize?340:250,left=50,right=20,top=20,bottom=44;
+      const plotW=width-left-right,plotH=height-top-bottom;
+      const max=Math.max(...values,1);
+      const stepX=labels.length===1?plotW:plotW/(labels.length-1);
+      const pts=values.map((v,i)=>({x:left+stepX*i,y:top+plotH-(v/max)*plotH,v,label:labels[i]}));
+      const polyline=pts.map(p=>`${p.x},${p.y}`).join(' ');
+      const area=`M ${pts[0].x} ${top+plotH} ${pts.map(p=>`L ${p.x} ${p.y}`).join(' ')} L ${pts[pts.length-1].x} ${top+plotH} Z`;
+      const grid=Array.from({length:5},(_,i)=>{const y=top+(plotH/4)*i;const value=Math.round(max-(max/4)*i);return`<line class="svg-axis" x1="${left}" y1="${y}" x2="${width-right}" y2="${y}"></line><text class="svg-label" x="12" y="${y+4}">${value}</text>`;}).join('');
+      const xLabels=pts.map(p=>`<text class="svg-label" x="${p.x}" y="${height-8}" text-anchor="middle">${p.label}</text>`).join('');
+      const nodes=pts.map((p,i)=>`<g class="svg-click chart-node" data-index="${i}"><circle cx="${p.x}" cy="${p.y}" r="5" fill="#00dcff" style="filter:drop-shadow(0 0 6px #00dcff);"></circle><circle cx="${p.x}" cy="${p.y}" r="11" fill="rgba(0,220,255,.08)"></circle><text class="svg-value" x="${p.x}" y="${p.y-13}" text-anchor="middle">${Math.round(p.v)}</text></g>`).join('');
+      return`<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="slg-${key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(0,220,255,.28)"></stop><stop offset="100%" stop-color="rgba(0,220,255,.01)"></stop></linearGradient></defs>${grid}<path d="${area}" fill="url(#slg-${key})"></path><polyline points="${polyline}" fill="none" stroke="#00dcff" stroke-width="2.5" style="filter:drop-shadow(0 0 5px rgba(0,220,255,.6));"></polyline>${xLabels}${nodes}</svg>`;
+    }
+
+    // 今日个人产出 — 竖向柱状图（姓名X轴，数量Y轴，按数量降序）
+    function buildSingleBarSvg(key,data,fullSize=false){
+      const labels=data.labels,values=data.values;
+      if(!labels.length) return '<div class="list-empty-chart">当前无数据</div>';
+      const width=900,height=fullSize?340:250,left=60,right=28,top=18,bottom=58;
+      const plotW=width-left-right,plotH=height-top-bottom;
+      const max=Math.max(...values,1);
+      const slot=plotW/labels.length;
+      const barW=Math.min(46,slot*0.55);
+      const grid=Array.from({length:5},(_,i)=>{
+        const y=top+(plotH/4)*i;
+        const value=Math.round(max-(max/4)*i);
+        return`<line class="svg-axis" x1="${left}" y1="${y}" x2="${width-right}" y2="${y}"></line><text class="svg-label" x="10" y="${y+4}">${value}</text>`;
+      }).join('');
+      const bars=values.map((v,i)=>{
+        const h=Math.max((v/max)*plotH,2);
+        const x=left+slot*i+(slot-barW)/2;
+        const y=top+plotH-h;
+        // 渐变颜色：第1名金色，其余青蓝
+        const fillId=i===0?`topBar-${key}`:`grad-${key}`;
+        // 第1名标签：贴在柱子右侧边缘内（text-anchor end），不超出柱外
+        const labelX = i===0 ? x+barW-2 : x+barW/2;
+        const labelAnchor = i===0 ? 'end' : 'middle';
+        return`<g class="svg-click chart-node" data-index="${i}">
+          <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="url(#${fillId})" style="filter:drop-shadow(0 0 6px rgba(0,180,255,.4));"></rect>
+          <text class="svg-value" x="${x+barW/2}" y="${y-7}" text-anchor="middle">${v}</text>
+          <text class="svg-label" x="${labelX}" y="${height-10}" text-anchor="${labelAnchor}" font-size="10" transform="rotate(-28 ${labelX} ${height-10})">${escapeHtml(labels[i])}</text>
+        </g>`;
+      }).join('');
+      return`<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="grad-${key}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#00c8ff"></stop>
+            <stop offset="100%" stop-color="#0055cc"></stop>
+          </linearGradient>
+          <linearGradient id="topBar-${key}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffe066"></stop>
+            <stop offset="100%" stop-color="#ff9900"></stop>
+          </linearGradient>
+        </defs>
+        ${grid}${bars}
+      </svg>`;
+    }
+
+    // ══ FULL PAGE MODULE RENDER (kept for compat) ══
+    function renderModuleFull(key){ /* merged into renderCombinedFull */ }
+
+    // ══ CORE STATE & LOGIC (PRESERVED FROM ORIGINAL) ══
+
+    const STORAGE_KEY = 'mes_dashboard_unified_v1';  // 版本升级，强制清除旧缓存
+    const SHARED_REPAIR_HANDLE_KEY = '__shared_repair_report__';
+
+    const defaultState = {
+      activeAttendanceTab: 'present',
+      attendance: {
+        key: 'attendance',
+        title: '产线维修出勤 (DEMO)',
+        sourceType: 'manual-json',
+        sourceUrl: '',
+        boundFileName: '',
+        deptKeyword: '工程处',
+        detailKeyword: '产线维修课',
+        excludePositionKeywords: '经理',
+        manualWhiteDetailUrl: '',
+        manualNightDetailUrl: '',
+        refreshSec: 0,
+        manualJson: JSON.stringify({
+          summary: { dayShiftActual: 12, nightShiftActual: 8, attendanceActual: 20, attendancePlan: 22 },
+          present: [
+            { name: "张三", shift: "白班", status: "在岗", group: "维修一组" },
+            { name: "李四", shift: "白班", status: "在岗", group: "维修一组" },
+            { name: "王五", shift: "夜班", status: "在岗", group: "维修二组" }
+          ],
+          absent: [
+            { name: "赵六", shift: "白班", status: "未出勤", reason: "请假", group: "维修一组" }
+          ],
+          late: [],
+          leave: [],
+          meta: 'DEMO 数据'
+        }, null, 2),
+        currentData: null
+      },
+      modules: {
+        module1:{key:'module1',title:'维修趋势 (DEMO)',chartType:'line',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'12',manualJson:JSON.stringify({labels:["05-01","05-02","05-03","05-04","05-05","05-06","05-07"],values:[45,52,48,60,55,65,70],detailMap:{},meta:'DEMO数据',wip:'12'},null,2),currentData:null},
+        module2:{key:'module2',title:'维修趋势 (DEMO-B)',chartType:'line',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'8',manualJson:JSON.stringify({labels:["05-01","05-02","05-03","05-04","05-05","05-06","05-07"],values:[30,35,32,40,38,42,45],detailMap:{},meta:'DEMO数据',wip:'8'},null,2),currentData:null},
+        module3:{key:'module3',title:'今日个人产出 (DEMO)',chartType:'bar',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'',manualJson:JSON.stringify({labels:["张三","李四","王五","赵六"],values:[15,12,10,8],detailMap:{},meta:'DEMO数据'},null,2),currentData:null},
+        module4:{key:'module4',title:'今日个人产出 (DEMO-B)',chartType:'bar',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'',manualJson:JSON.stringify({labels:["王五","李四","张三","赵六"],values:[14,11,9,7],detailMap:{},meta:'DEMO数据'},null,2),currentData:null}
+      }
+    };
+
+    const safeLocalStore=(()=>{const mem={};let ok=false,ls=null;try{ls=window.localStorage;const k='__plm_store_probe__';ls.setItem(k,'1');ls.removeItem(k);ok=true;}catch(_){}return{getItem:k=>{try{return ok?ls.getItem(k):(mem[k]??null);}catch(_){return mem[k]??null;}},setItem:(k,v)=>{try{if(ok)ls.setItem(k,v);else mem[k]=String(v);}catch(_){mem[k]=String(v);}},removeItem:k=>{try{if(ok)ls.removeItem(k);else delete mem[k];}catch(_){delete mem[k];}},available:()=>ok};})();
+    const state = loadState();
+    const timers = {};
+    let editingKey = null;
+    const ambientMotionTimers = {};
+    const chartRenderLocks = {};
+    const sessionFileHandles = {};
+    const HANDLE_DB_NAME = 'mes_dashboard_file_handles_v1';
+    const HANDLE_STORE_NAME = 'handles';
+
+    const DASH_SYNC_SOURCE='production_line_dashboard';
+    const DASH_SYNC_CHANNEL='PLM_DASHBOARD_SYNC_V2';
+    const DASH_SYNC_STORAGE_KEY='PLM_DASHBOARD_SYNC_V2_SNAPSHOT';
+    const SHARED_BINDING_CHANNEL='RDC_SHARED_FILE_BINDING_V1';
+    const SHARED_BINDING_STORAGE_KEY='RDC_SHARED_FILE_BINDING_V1';
+    const SNAPSHOT_DB_NAME='mes_dashboard_file_snapshots_v1';
+    const SNAPSHOT_STORE_NAME='snapshots';
+    let dashSyncChannel=null;
+    let sharedBindingChannel=null;
+    let dashSyncTimer=null;
+    let dashSyncMuted=false;
+
+    function safeSyncJson(obj){try{return JSON.parse(JSON.stringify(obj));}catch(_){return null;}}
+    function scheduleSyncBroadcast(reason='update'){
+      if(dashSyncMuted) return;
+      clearTimeout(dashSyncTimer);
+      dashSyncTimer=setTimeout(()=>publishSyncSnapshot(reason),180);
+    }
+    function buildSyncPayload(){
+      return {
+        version:2,
+        ts:Date.now(),
+        attendance:{
+          title:state.attendance.title,
+          boundFileName:state.attendance.boundFileName,
+          refreshSec:state.attendance.refreshSec,
+          currentData:state.attendance.currentData||null
+        },
+        modules:Object.fromEntries(Object.entries(state.modules).map(([k,v])=>[k,{
+          title:v.title,
+          chartType:v.chartType,
+          boundFileName:v.boundFileName,
+          refreshSec:v.refreshSec,
+          wip:v.wip||'',
+          currentData:v.currentData||null
+        }]))
+      };
+    }
+    function applySyncPayload(payload,{silent=true}={}){
+      if(!payload) return;
+      let changed=false;
+      dashSyncMuted=true;
+      try{
+        if(payload.attendance?.currentData){
+          state.attendance.currentData=normalizeAttendanceData(payload.attendance.currentData);
+          if(payload.attendance.boundFileName) state.attendance.boundFileName=payload.attendance.boundFileName;
+          changed=true;
+        }
+        Object.entries(payload.modules||{}).forEach(([key,info])=>{
+          if(!state.modules[key]||!info?.currentData) return;
+          state.modules[key].currentData=normalizeModuleData(info.currentData);
+          if(info.boundFileName) state.modules[key].boundFileName=info.boundFileName;
+          if(info.wip!==undefined) state.modules[key].wip=info.wip;
+          changed=true;
+        });
+        if(changed){
+          saveState(true);
+          renderAll();
+          if(typeof renderSharedDocsTable==='function') renderSharedDocsTable();
+        }
+      }catch(err){console.warn('applySyncPayload failed',err);}finally{dashSyncMuted=false;}
+      if(changed&&!silent) toast('已接收同步数据');
+    }
+    function publishSyncSnapshot(reason='update'){
+      const msg={type:'PLM_DASH_SYNC',source:DASH_SYNC_SOURCE,reason,payload:buildSyncPayload()};
+      try{safeLocalStore.setItem(DASH_SYNC_STORAGE_KEY, JSON.stringify(msg));}catch(_){ }
+      try{if(dashSyncChannel) dashSyncChannel.postMessage(msg);}catch(_){ }
+      try{if(window.parent&&window.parent!==window) window.parent.postMessage({type:'RDC_CHILD_SYNC',source:DASH_SYNC_SOURCE,payload:msg.payload},'*');}catch(_){ }
+    }
+    function initDashboardSync(){
+      try{
+        dashSyncChannel=new BroadcastChannel(DASH_SYNC_CHANNEL);
+        dashSyncChannel.onmessage=(evt)=>{
+          const data=evt.data||{};
+          if(data.type==='PLM_DASH_SYNC'&&data.source===DASH_SYNC_SOURCE&&data.payload){
+            applySyncPayload(data.payload,{silent:true});
+          }
+        };
+      }catch(_){ }
+      window.addEventListener('storage',(evt)=>{
+        if(evt.key!==DASH_SYNC_STORAGE_KEY||!evt.newValue) return;
+        try{
+          const data=JSON.parse(evt.newValue);
+          if(data.type==='PLM_DASH_SYNC'&&data.source===DASH_SYNC_SOURCE&&data.payload){
+            applySyncPayload(data.payload,{silent:true});
+          }
+        }catch(_){ }
+      });
+      window.addEventListener('message',(evt)=>{
+        const data=evt.data||{};
+        if(data.type==='RDC_PARENT_SYNC'&&data.source===DASH_SYNC_SOURCE&&data.payload){
+          applySyncPayload(data.payload,{silent:true});
+        }
+        if(data.type==='RDC_PARENT_SYNC_DUMP'&&data.payload&&data.payload[DASH_SYNC_SOURCE]?.payload){
+          applySyncPayload(data.payload[DASH_SYNC_SOURCE].payload,{silent:true});
+        }
+      });
+      try{
+        const raw=safeLocalStore.getItem(DASH_SYNC_STORAGE_KEY);
+        if(raw){
+          const data=JSON.parse(raw);
+          if(data.type==='PLM_DASH_SYNC'&&data.source===DASH_SYNC_SOURCE&&data.payload){
+            applySyncPayload(data.payload,{silent:true});
+          }
+        }
+      }catch(_){ }
+      try{if(window.parent&&window.parent!==window) window.parent.postMessage({type:'RDC_CHILD_SYNC_REQUEST',source:DASH_SYNC_SOURCE},'*');}catch(_){ }
+    }
+    function initFxCanvas(){
+      const canvas=document.getElementById('fxCanvas');
+      if(!canvas) return;
+      const ctx=canvas.getContext('2d');
+      if(!ctx) return;
+      let w=0,h=0,particles=[];
+      const dpr=Math.max(1,Math.min(window.devicePixelRatio||1,2));
+      function resize(){
+        w=window.innerWidth;h=window.innerHeight;
+        canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);
+        canvas.style.width=w+'px';canvas.style.height=h+'px';
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        particles=Array.from({length:32},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.8+0.6,vx:(Math.random()-.5)*0.18,vy:Math.random()*0.35+0.05,alpha:Math.random()*0.55+0.15}));
+      }
+      function draw(ts){
+        ctx.clearRect(0,0,w,h);
+        const gx=((ts||0)*0.012)%42;
+        ctx.strokeStyle='rgba(0,220,255,0.06)';
+        ctx.lineWidth=1;
+        for(let x=-42+gx;x<w+42;x+=42){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+        for(let y=0;y<h+42;y+=42){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+        ctx.strokeStyle='rgba(0,255,136,0.035)';
+        for(let i=0;i<7;i++){
+          const yy=(h*0.16)+i*72+Math.sin((ts||0)/1800+i)*6;
+          ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy-26);ctx.stroke();
+        }
+        particles.forEach(p=>{
+          p.x+=p.vx; p.y+=p.vy;
+          if(p.x<-10) p.x=w+10; if(p.x>w+10) p.x=-10; if(p.y>h+10){p.y=-10; p.x=Math.random()*w;}
+          ctx.beginPath();
+          ctx.fillStyle=`rgba(0,220,255,${p.alpha})`;
+          ctx.shadowBlur=10;
+          ctx.shadowColor='rgba(0,220,255,.35)';
+          ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+          ctx.fill();
+          ctx.shadowBlur=0;
+        });
+        requestAnimationFrame(draw);
+      }
+      resize();
+      window.addEventListener('resize',resize);
+      requestAnimationFrame(draw);
+    }
+    function animateNumber(el,target,formatter=null){
+      if(!el) return;
+      const prev=Number(el.dataset.num||0);
+      const next=Number(target||0);
+      const start=performance.now();
+      const duration=720;
+      function tick(now){
+        const p=Math.min(1,(now-start)/duration);
+        const eased=1-Math.pow(1-p,3);
+        const val=prev+(next-prev)*eased;
+        el.textContent=formatter?formatter(val):String(Math.round(val));
+        if(p<1) requestAnimationFrame(tick); else {el.dataset.num=String(next); el.textContent=formatter?formatter(next):String(Math.round(next));}
+      }
+      requestAnimationFrame(tick);
+    }
+
+    document.getElementById('cfgHint').value = [
+      '推荐接入方式：',
+      '1. 每个看板 / 出勤模块都可单独配置，互不影响。',
+      '2. 若使用 Edge / Chrome，点「绑定文件（永久）」可直接绑定共享盘文件，绑定后永久有效直到主动解绑。',
+      '3. 绑定方式支持：CSV / HTML / JSON / XLSX / XLSM；制造中心出勤看板推荐直接绑定 XLSX/XLSM。',
+      '4. 若绑定"ASH Repair Detail(By Repair Time)"这类维修明细 XLSX，可自动按人员归属生成产线/系统的每日与个人统计。',
+      '5. 系统维修（徐树星、辛瀚）与产线维修（其余人员）分别统计；维修明细报表已剔除 WIP；点数量卡片、饼图、图表或出勤名单可直接查看详情。'
+    ].join('\n');
+
+    function setByPath(obj,path,value){const parts=path.split('.');let cur=obj;for(let i=0;i<parts.length-1;i++)cur=cur[parts[i]];cur[parts[parts.length-1]]=value;}
+    function getEditingCfg(){if(!editingKey)return null;return editingKey==='attendance'?state.attendance:state.modules[editingKey];}
+    function getCfgByKey(key){return key==='attendance'?state.attendance:state.modules[key];}
+
+    function openHandleDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(HANDLE_DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(HANDLE_STORE_NAME))db.createObjectStore(HANDLE_STORE_NAME);};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+    async function saveHandleToDb(key,handle){const db=await openHandleDb();await new Promise((resolve,reject)=>{const tx=db.transaction(HANDLE_STORE_NAME,'readwrite');tx.objectStore(HANDLE_STORE_NAME).put(handle,key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});db.close();}
+    async function getHandleFromDb(key){const db=await openHandleDb();const val=await new Promise((resolve,reject)=>{const tx=db.transaction(HANDLE_STORE_NAME,'readonly');const req=tx.objectStore(HANDLE_STORE_NAME).get(key);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});db.close();return val;}
+    async function deleteHandleFromDb(key){const db=await openHandleDb();await new Promise((resolve,reject)=>{const tx=db.transaction(HANDLE_STORE_NAME,'readwrite');tx.objectStore(HANDLE_STORE_NAME).delete(key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});db.close();}
+    function openSnapshotDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(SNAPSHOT_DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(SNAPSHOT_STORE_NAME))db.createObjectStore(SNAPSHOT_STORE_NAME);};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+    async function saveSnapshotToDb(key,snapshot){if(!key||!snapshot||!snapshot.buffer)return;const db=await openSnapshotDb();await new Promise((resolve,reject)=>{const tx=db.transaction(SNAPSHOT_STORE_NAME,'readwrite');tx.objectStore(SNAPSHOT_STORE_NAME).put(snapshot,key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});db.close();}
+    async function getSnapshotFromDb(key){const db=await openSnapshotDb();const val=await new Promise((resolve,reject)=>{const tx=db.transaction(SNAPSHOT_STORE_NAME,'readonly');const req=tx.objectStore(SNAPSHOT_STORE_NAME).get(key);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});db.close();return val;}
+    async function deleteSnapshotFromDb(key){const db=await openSnapshotDb();await new Promise((resolve,reject)=>{const tx=db.transaction(SNAPSHOT_STORE_NAME,'readwrite');tx.objectStore(SNAPSHOT_STORE_NAME).delete(key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});db.close();}
+    async function ensureHandlePermission(handle){if(!handle)return false;const opts={mode:'read'};if((await handle.queryPermission(opts))==='granted')return true;return(await handle.requestPermission(opts))==='granted';}
+    async function pickFileHandle(){if(!window.showOpenFilePicker)throw new Error('当前浏览器不支持永久绑定，请改用 Edge / Chrome。');const[handle]=await window.showOpenFilePicker({multiple:false,types:[{description:'MES / 共享盘数据文件',accept:{'text/csv':['.csv','.txt'],'text/html':['.html','.htm'],'application/json':['.json'],'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'],'application/vnd.ms-excel.sheet.macroEnabled.12':['.xlsm'],'application/vnd.ms-excel':['.xls']}}]});return handle;}
+    function isModuleKey(key){return key&&key!=='attendance';}
+    function normalizeSnapshotMeta(fileOrMeta,buffer){const name=fileOrMeta?.name||fileOrMeta?.fileName||'已绑定文件';return{name,fileName:name,lastModified:fileOrMeta?.lastModified||0,savedAt:fileOrMeta?.savedAt||Date.now(),buffer};}
+    function expandSharedSnapshotKeys(key,options={}){if(key===SHARED_REPAIR_HANDLE_KEY||options.applyAllModules)return Object.keys(state.modules);return[key];}
+    function markSnapshotBound(key,fileName,savedAt=Date.now()){const cfg=getCfgByKey(key);if(!cfg)return;cfg.boundFileName=fileName||cfg.boundFileName||'';cfg.boundFileSavedAt=Math.max(Number(cfg.boundFileSavedAt||0),Number(savedAt||0));cfg.sourceType='bound-file';}
+    function publishSharedBindingFromComposite(keys,snap,options={}){const targetKeys=[...new Set((keys||[]).filter(Boolean))];if(!targetKeys.length||!snap?.buffer)return;const binding={version:1,source:DASH_SYNC_SOURCE,dashboardId:DASH_SYNC_SOURCE,moduleId:targetKeys.length===1?targetKeys[0]:'repair_modules',bindKey:options.applyAllModules?SHARED_REPAIR_HANDLE_KEY:targetKeys[0],targetKey:targetKeys[0],targetKeys,fileName:snap.fileName||snap.name,name:snap.fileName||snap.name,lastModified:snap.lastModified||0,savedAt:snap.savedAt||Date.now(),hasSnapshot:true,snapshot:snap};try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:'RDC_SHARED_FILE_BINDING',binding},'*');}catch(_){}try{const ch=new BroadcastChannel(SHARED_BINDING_CHANNEL);ch.postMessage({type:'RDC_SHARED_FILE_BINDING',binding});ch.close();}catch(_){}}
+    async function rememberSnapshotBuffer(key,fileOrMeta,buffer,options={}){if(!key||!buffer)return;const snap=normalizeSnapshotMeta(fileOrMeta,buffer);const keys=expandSharedSnapshotKeys(key,options);for(const k of keys){markSnapshotBound(k,snap.fileName,snap.savedAt);await saveSnapshotToDb(k,snap).catch(()=>{});}if(options.applyAllModules||key===SHARED_REPAIR_HANDLE_KEY){await saveSnapshotToDb(SHARED_REPAIR_HANDLE_KEY,snap).catch(()=>{});}saveState();if(options.broadcast)publishSharedBindingFromComposite(keys,snap,options);}
+    async function rememberFileSnapshot(key,file,options={}){if(!file)return;const buffer=await file.arrayBuffer();await rememberSnapshotBuffer(key,file,buffer,options);}
+    async function resolveFileSnapshot(key){let snap=await getSnapshotFromDb(key).catch(()=>null);if(!snap&&isModuleKey(key))snap=await getSnapshotFromDb(SHARED_REPAIR_HANDLE_KEY).catch(()=>null);if(snap&&snap.buffer){const fileName=snap.fileName||snap.name||'';markSnapshotBound(key,fileName,snap.savedAt);saveState(true);}return snap;}
+    function normalizeSnapshotBuffer(buffer){if(!buffer)return null;if(buffer instanceof ArrayBuffer||ArrayBuffer.isView(buffer))return buffer;if(Array.isArray(buffer))return new Uint8Array(buffer);if(buffer&&Array.isArray(buffer.data))return new Uint8Array(buffer.data);return buffer;}
+    function fileFromSnapshot(snap){const buffer=normalizeSnapshotBuffer(snap&&snap.buffer);if(!buffer)return null;return new File([buffer],snap.fileName||snap.name||'bound-file.xlsx',{lastModified:snap.lastModified||snap.savedAt||Date.now()});}
+    function normalizeSharedBinding(data){const binding=data?.binding||data?.payload||data;if(!binding||binding.type==='RDC_SHARED_FILE_BINDING')return binding?.binding||binding?.payload||null;return binding;}
+    function inferSharedBindingKeys(binding){const raw=Array.isArray(binding?.targetKeys)?binding.targetKeys.filter(Boolean):[];if(binding?.targetKey)raw.push(binding.targetKey);if(binding?.moduleId&&getCfgByKey(binding.moduleId))raw.push(binding.moduleId);if(raw.length)return[...new Set(raw)];return[];}
+    async function applySharedBindingMessage(data,{silent=true}={}){const binding=normalizeSharedBinding(data);if(!binding)return;const keys=inferSharedBindingKeys(binding);if(!keys.length)return;if(binding.action==='clear'){for(const key of keys){await clearBoundHandle(key);}renderSharedDocsTable();if(!silent)toast('共享绑定已清除');return;}const snap=binding.snapshot||binding;const buffer=snap.buffer||binding.buffer;const fileName=binding.fileName||binding.name||snap.fileName||snap.name||'';const savedAt=Number(binding.savedAt||snap.savedAt||Date.now());if(!fileName||!buffer)return;const freshKeys=keys.filter(key=>savedAt>=Number((getCfgByKey(key)||{}).boundFileSavedAt||0));if(!freshKeys.length)return;for(const key of freshKeys){await rememberSnapshotBuffer(key,{name:fileName,lastModified:binding.lastModified||snap.lastModified||0,savedAt},buffer,{applyAllModules:false,broadcast:false});}renderSharedDocsTable();scheduleSyncBroadcast('shared-snapshot-bind');setTimeout(()=>{freshKeys.forEach(key=>{if(key==='attendance')refreshAttendance(true);else if(state.modules[key])refreshModule(key,true);});},0);if(!silent)toast('已同步共享绑定：'+fileName);}
+    function initSharedBindingBridge(){try{sharedBindingChannel=new BroadcastChannel(SHARED_BINDING_CHANNEL);sharedBindingChannel.onmessage=evt=>{const data=evt.data||{};if(data.type==='RDC_SHARED_FILE_BINDING')applySharedBindingMessage(data,{silent:true});};}catch(_){}window.addEventListener('message',evt=>{const data=evt.data||{};if(data.type==='RDC_SHARED_FILE_BINDING')applySharedBindingMessage(data,{silent:true});if(data.type==='RDC_SHARED_FILE_BINDING_DUMP'&&Array.isArray(data.bindings)){data.bindings.forEach(item=>applySharedBindingMessage(item,{silent:true}));}});try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:'RDC_SHARED_FILE_BINDING_REQUEST'},'*');}catch(_){}}
+    function canAskParentToPick(){return !!(window.parent&&window.parent!==window);}
+    async function requestParentPickedFile(key,persist=false){return await new Promise((resolve,reject)=>{if(!canAskParentToPick())return reject(new Error('当前页面未嵌入集成看板，无法走父页代理选文件'));const reqId='RDC_PICK_'+Date.now()+'_'+Math.random().toString(36).slice(2);let done=false;const cleanup=()=>{done=true;window.removeEventListener('message',onMsg);clearTimeout(timer);};const onMsg=(evt)=>{const data=evt.data||{};if(data.type!=='RDC_PARENT_PICK_FILE_RESULT'||data.reqId!==reqId)return;cleanup();if(data.error)return reject(new Error(data.error));if(data.handle)return resolve({handle:data.handle,file:data.file||null,via:'parent-handle'});if(data.file)return resolve({file:data.file,via:'parent-file'});/* 父页以 ArrayBuffer 降级传输（File/handle 跨 opaque-origin 克隆失败时） */if(data.fileBuffer&&data.name){  const blob=new Blob([data.fileBuffer]);  const synFile=new File([blob],data.name);  return resolve({file:synFile,via:'parent-buffer'});}return reject(new Error('父页未返回可用文件'));};const timer=setTimeout(()=>{if(done)return;cleanup();reject(new Error('父页代理选文件超时，请确认集成看板窗口正常'));},45000);window.addEventListener('message',onMsg);try{window.parent.postMessage({type:'RDC_PARENT_PICK_FILE',reqId,key:key||'',persist:!!persist},'*');}catch(e){cleanup();reject(e);}});}
+    async function acquireFileSelection(key,persist=true){
+      // 当嵌入在 Blob iframe 内时，opaque-origin 无法获得 File System Access 权限，
+      // 必须委托父页（集成看板）代理弹出文件选择器。
+      const inIframe=!!(window.parent&&window.parent!==window);
+      if(inIframe&&canAskParentToPick()){
+        try{return await requestParentPickedFile(key,persist);}
+        catch(e){if(String(e).includes('AbortError'))throw e;
+          console.warn('[acquireFile] 父页代理失败，降级本页选择:',e.message);}
+      }
+      if(window.showOpenFilePicker){return{handle:await pickFileHandle(),via:'self-handle'};}
+      return{via:'input-fallback'};
+    }
+    async function rememberFileHandle(key,handle,persist=true){sessionFileHandles[key]=handle;const cfg=getCfgByKey(key);cfg.boundFileName=handle?.name||'';cfg.boundFileSavedAt=Date.now();cfg.sourceType='bound-file';/* 在 Blob iframe 内，IndexedDB 基于 opaque-origin，无法持久化 handle，跳过 */const canPersist=!!(persist&&!(window.parent&&window.parent!==window));saveState();if(canPersist)try{await saveHandleToDb(key,handle);}catch(e){}}
+    async function resolveFileHandle(key,options={}){if(sessionFileHandles[key])return sessionFileHandles[key];const includeShared=options.includeShared!==false;let handle=await getHandleFromDb(key).catch(()=>null);let sharedFallback=false;if(!handle&&includeShared&&isModuleKey(key)){handle=sessionFileHandles[SHARED_REPAIR_HANDLE_KEY]||await getHandleFromDb(SHARED_REPAIR_HANDLE_KEY).catch(()=>null);sharedFallback=!!handle;}if(handle){if(!sharedFallback)sessionFileHandles[key]=handle;const cfg=getCfgByKey(key);if(cfg&&!cfg.boundFileName)cfg.boundFileName=handle.name||'';saveState();}return handle;}
+    async function clearBoundHandle(key){delete sessionFileHandles[key];await deleteHandleFromDb(key);await deleteSnapshotFromDb(key).catch(()=>{});const cfg=getCfgByKey(key);cfg.boundFileName='';if(cfg.sourceType==='bound-file')cfg.sourceType='manual-json';saveState();}
+
+    async function ensureXlsxLib(){if(window.XLSX)return window.XLSX;const sources=['./xlsx.full.min.js','https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'];for(const src of sources){try{await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=true;script.onload=resolve;script.onerror=()=>reject(new Error('加载失败: '+src));document.head.appendChild(script);});if(window.XLSX)return window.XLSX;}catch(e){}}throw new Error('未能加载 XLSX 解析库。若公司网络拦截外网，请把 xlsx.full.min.js 放到 HTML 同目录再重试。');}
+    function rowsToCsv(rows){return rows.map(row=>row.map(cell=>{const str=String(cell??'');return/[\",\n\r]/.test(str)?`"${str.replaceAll('"','""')}"`:`${str}`;}).join(',')).join('\n');}
+    function parseHtmlTableRows(text){const doc=new DOMParser().parseFromString(text,'text/html');const table=doc.querySelector('table');if(!table)throw new Error('HTML 中未找到表格');const rows=[...table.querySelectorAll('tr')].map(tr=>[...tr.cells].map(td=>td.textContent.trim()));return rows.filter(row=>row.some(Boolean));}
+    function getWorkbookRows(workbook,preferredSheetKeyword=''){let sheetName=workbook.SheetNames[0];if(preferredSheetKeyword){const hit=workbook.SheetNames.find(name=>String(name).includes(preferredSheetKeyword));if(hit)sheetName=hit;}const ws=workbook.Sheets[sheetName];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''}).map(row=>row.map(v=>String(v??'').trim()));return{sheetName,ws,rows};}
+    function buildMergedHeaderGrid(ws,maxRows=8,maxCols=20){const grid=Array.from({length:maxRows},()=>Array.from({length:maxCols},()=>''));for(let r=0;r<maxRows;r++){for(let c=0;c<maxCols;c++){const ref=XLSX.utils.encode_cell({r,c});const cell=ws[ref];grid[r][c]=String((cell&&(cell.w??cell.v))||'').trim();}}(ws['!merges']||[]).forEach(m=>{const ref=XLSX.utils.encode_cell({r:m.s.r,c:m.s.c});const cell=ws[ref];const val=String((cell&&(cell.w??cell.v))||'').trim();if(!val)return;for(let r=m.s.r;r<=Math.min(m.e.r,maxRows-1);r++){for(let c=m.s.c;c<=Math.min(m.e.c,maxCols-1);c++){if(!grid[r][c])grid[r][c]=val;}}});return grid;}
+    function findRowByKeyword(rows,keyword){if(!keyword)return -1;return rows.findIndex(row=>row.some(cell=>String(cell||'').includes(keyword)));}
+    function findMetricColInGroup(grid,groupKeyword,metricKeyword){const maxCols=grid[0]?.length||0;for(let c=0;c<maxCols;c++){const joined=grid.map(row=>row[c]||'').join('|');if(joined.includes(groupKeyword)&&joined.includes(metricKeyword))return c;}return -1;}
+    function normalizeReportUrl(url){let s=String(url||'').trim();if(!s)return'';const ta=document.createElement('textarea');ta.innerHTML=s;s=ta.value||s;s=s.replace(/%u([0-9a-fA-F]{4})/g,(_,hex)=>String.fromCharCode(parseInt(hex,16)));s=s.replace(/&amp;/gi,'&');s=s.replace(/([?&])amp;(?=[A-Za-z0-9_]+=)/g,'$1');s=s.replace(/\s/g,'');return s;}
+    function normalizeAttendanceDetailUrl(url,shift=''){let s=normalizeReportUrl(url);if(!s)return'';try{const u=new URL(s,location.href);if(shift)u.searchParams.set('SH',shift);return u.toString();}catch(e){if(shift){if(/[?&]SH=/.test(s)){return s.replace(/([?&]SH=)([^&]*)/,(_,p1)=>p1+encodeURIComponent(shift));}const sep=s.includes('?')?'&':'?';return s+sep+'SH='+encodeURIComponent(shift);}return s;}}
+    const ATTENDANCE_STATUS={present:{label:'在岗',rank:30,actual:true},late:{label:'迟到',rank:40,actual:true},leave:{label:'请假',rank:20,actual:false},absent:{label:'未出勤',rank:10,actual:false}};
+    function normalizeAttendanceName(name){return String(name||'').replace(/[\s\u3000]/g,'').trim();}
+    function normalizeAttendanceShift(shift){const s=String(shift||'').trim();if(s.includes('白'))return'白班';if(s.includes('夜'))return'夜班';return s;}
+    function inferAttendanceTab(row,fallback='present'){const raw=String(row?.rawStatus||row?.status||row?.出勤状态||row?.attendanceStatus||'').trim().toLowerCase();const reason=String(row?.reason||row?.备注||'').trim();const text=raw||reason;if(text.includes('迟到')||text==='late')return'late';if(text.includes('请假')||text==='leave')return'leave';if(text.includes('未出勤')||text.includes('未到')||text==='absent')return'absent';if(text.includes('在岗')||text.includes('出勤')||text.includes('正常')||text==='present')return'present';return fallback;}
+    function isAttendancePlaceholder(item){const name=String(item?.name||item?.姓名||'').trim();return item?.source==='超链接'||/^打开.+明细$/.test(name);}
+    function attendancePersonKey(item){const empId=String(item?.empId||item?.工号||'').trim();if(empId)return'id:'+empId;const name=normalizeAttendanceName(item?.name||item?.姓名);return name?'name:'+name:'';}
+    function normalizeAttendanceReason(item){return String(item?.reason||item?.note||item?.备注||item?.未到原因||item?.原因||'').trim();}
+    function normalizeAttendanceItem(item,tab){const normalized={...item};normalized.name=String(item?.name||item?.姓名||'').trim();normalized.shift=normalizeAttendanceShift(item?.shift||item?.班别||'');normalized.reason=normalizeAttendanceReason(item);normalized.note=normalized.reason;normalized.rawStatus=String(item?.rawStatus||item?.status||item?.出勤状态||'').trim();const finalTab=inferAttendanceTab(normalized,tab);normalized.status=ATTENDANCE_STATUS[finalTab]?.label||ATTENDANCE_STATUS.present.label;return{tab:finalTab,item:normalized,key:attendancePersonKey(normalized)};}
+    function attendanceItemScore(record){const item=record.item||{};return((ATTENDANCE_STATUS[record.tab]?.rank||0)*100)+((item.checkIn||item.clockIn)?8:0)+(item.empId?4:0)+(item.shift?2:0)+(isAttendancePlaceholder(item)?-20:0);}
+    function pickAttendanceRecord(current,next){if(!current)return next;const currentRank=ATTENDANCE_STATUS[current.tab]?.rank||0;const nextRank=ATTENDANCE_STATUS[next.tab]?.rank||0;if(nextRank!==currentRank)return nextRank>currentRank?next:current;return attendanceItemScore(next)>=attendanceItemScore(current)?next:current;}
+    function dedupeAttendanceItems(items){const out=[];const seen=new Set();(Array.isArray(items)?items:[]).forEach(item=>{if(!item||isAttendancePlaceholder(item))return;const key=attendancePersonKey(item)||[item.name||'',item.shift||'',item.group||'',item.status||'',item.reason||''].join('|');if(seen.has(key))return;seen.add(key);out.push(item);});return out;}
+    function getCellLink(ws,r,c){if(r<0||c<0)return'';const ref=XLSX.utils.encode_cell({r,c});const cell=ws[ref];return normalizeReportUrl(cell?.l?.Target||cell?.l?.target||'');}
+    function getCellValue(rows,r,c){return Number((rows[r]&&rows[r][c])||0);}
+    function normalizeAttendanceHeader(text){return String(text||'').replace(/\s+/g,'').replace(/[：:]/g,'').trim();}
+    function isAttendanceHeaderRow(cells){const headers=(Array.isArray(cells)?cells:[]).map(normalizeAttendanceHeader);return headers.some(cell=>cell.includes('出勤状态')||cell==='状态')&&headers.some(cell=>cell.includes('职位')||cell.includes('岗位'))&&headers.some(cell=>cell.includes('班别')||cell.includes('班次'));}
+    function findAttendanceHeaderRow(rows){return(rows||[]).findIndex(row=>isAttendanceHeaderRow(row));}
+    function findAttendanceColumnIndexes(headers,keywords){const cols=(Array.isArray(headers)?headers:[]).map(normalizeAttendanceHeader);const hits=[];for(let i=0;i<cols.length;i++){if(keywords.some(keyword=>cols[i]===keyword||cols[i].includes(keyword)))hits.push(i);}return hits;}
+    function findAttendanceColumnIndex(headers,keywords,fallback=-1){const hits=findAttendanceColumnIndexes(headers,keywords);return hits.length?hits[0]:fallback;}
+    function buildAttendanceColumnMap(headers){const reasonIndexes=findAttendanceColumnIndexes(headers,['未到原因','备注','原因','说明']);return{status:findAttendanceColumnIndex(headers,['出勤状态','状态'],0),dept:findAttendanceColumnIndex(headers,['部门','组织','课别','课室','单位'],1),position:findAttendanceColumnIndex(headers,['职位','岗位'],2),empId:findAttendanceColumnIndex(headers,['工号','员工号','员工编号'],3),name:findAttendanceColumnIndex(headers,['姓名','名字','员工姓名'],4),reason:reasonIndexes.length?reasonIndexes[0]:5,reasonIndexes:reasonIndexes.length?reasonIndexes:[5],ext:findAttendanceColumnIndex(headers,['分机','电话','内线'],6),code:findAttendanceColumnIndex(headers,['代码','工种代码','岗位代码'],7),location:findAttendanceColumnIndex(headers,['地点','位置','区域','工位'],8),shift:findAttendanceColumnIndex(headers,['班别','班次'],9)};}
+    function getAttendanceMappedCell(cells,columnMap,key,fallback=''){const idx=columnMap&&Number.isInteger(columnMap[key])?columnMap[key]:-1;const val=idx>=0?cells[idx]:fallback;return String(val??fallback??'').trim();}
+    function pickAttendanceReason(cells,columnMap,fallback=''){const reasonIndexes=Array.isArray(columnMap?.reasonIndexes)?columnMap.reasonIndexes:[columnMap?.reason];for(const idx of reasonIndexes){const val=idx>=0?String(cells[idx]??'').trim():'';if(val)return val;}return String(fallback||'').trim();}
+    function makeLinkPlaceholder(link,category,note='当前浏览器可能无法直接跨域抓取明细，请点击链接查看'){return{name:`打开${link.shift}${category==='present'?'出勤':'未出勤'}明细`,shift:link.shift,status:category==='present'?'在岗':'未出勤',reason:note,url:link.url,source:'超链接'};}
+
+    function parseAttendanceDetailHtml(text,defaultShift,category,cfg,sourceUrl=''){
+      const doc=new DOMParser().parseFromString(text,'text/html');
+      const tables=[...doc.querySelectorAll('table')];
+      const keyword=String(cfg.detailKeyword||'').trim();
+      const candidates=tables.map(table=>{const rows=[...table.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(td=>td.textContent.replace(/\s+/g,' ').trim()));const joined=rows.map(r=>r.join('|')).join('\n');const score=joined.length+rows.length*20;return{rows,joined,score};}).filter(x=>x.joined.includes('职位')&&x.joined.includes('工号')&&x.joined.includes('班别')&&x.rows.length>=3).sort((a,b)=>b.score-a.score);
+      if(!candidates.length)return[];
+      const bestRows=[];
+      const seenRowKeys=new Set();
+      candidates.slice(0,3).forEach(candidate=>{candidate.rows.forEach(cells=>{const key=cells.join('|');if(!seenRowKeys.has(key)){seenRowKeys.add(key);bestRows.push(cells);}});});
+      const headerRowIndex=findAttendanceHeaderRow(bestRows);
+      const columnMap=buildAttendanceColumnMap(headerRowIndex>=0?bestRows[headerRowIndex]:[]);
+      const items=[];
+      let currentGroup='';
+      let inTargetGroup=!keyword;
+      const excludePositionKeywords=String(cfg.excludePositionKeywords||'经理').split(/[，,\s]+/).map(s=>s.trim()).filter(Boolean);
+      for(const rawCells of bestRows){
+        const cells=rawCells.map(v=>String(v||'').trim());
+        if(!cells.some(Boolean))continue;
+        if(isAttendanceHeaderRow(cells))continue;
+        const statusCell=getAttendanceMappedCell(cells,columnMap,'status',cells[0]||'');
+        const dept=getAttendanceMappedCell(cells,columnMap,'dept',cells[1]||'');
+        const position=getAttendanceMappedCell(cells,columnMap,'position',cells[2]||'');
+        const empId=getAttendanceMappedCell(cells,columnMap,'empId',cells[3]||'');
+        const personName=getAttendanceMappedCell(cells,columnMap,'name',cells[4]||'');
+        const reason=pickAttendanceReason(cells,columnMap,cells[5]||'');
+        const ext=getAttendanceMappedCell(cells,columnMap,'ext',cells[6]||'');
+        const code=getAttendanceMappedCell(cells,columnMap,'code',cells[7]||'');
+        const location=getAttendanceMappedCell(cells,columnMap,'location',cells[8]||'');
+        const shift=normalizeAttendanceShift(getAttendanceMappedCell(cells,columnMap,'shift',defaultShift||cells[9]||''));
+        if(dept){
+          currentGroup=dept;
+          if(keyword){
+            if(currentGroup.includes(keyword))inTargetGroup=true;
+            else if(currentGroup.includes('课')||currentGroup.includes('部')||currentGroup.includes('中心')||currentGroup.includes('处'))inTargetGroup=false;
+          }
+        }
+        const hasPersonShape=!!(position||empId||location||shift);
+        if(!hasPersonShape)continue;
+        if(!personName||/^\d+$/.test(personName))continue;
+        if(keyword&&!inTargetGroup)continue;
+        if(defaultShift&&shift&&shift!==defaultShift)continue;
+        if(excludePositionKeywords.length&&excludePositionKeywords.some(k=>position.includes(k)))continue;
+        if(category==='present'&&statusCell&&!statusCell.includes('出勤')&&!statusCell.includes('在岗')){if(statusCell!=='')continue;}
+        if(category==='absent'&&statusCell&&!statusCell.includes('未出勤')&&!statusCell.includes('请假')&&!statusCell.includes('未到')){if(statusCell!=='')continue;}
+        items.push({name:personName,shift,rawStatus:statusCell,status:category==='present'?'在岗':category==='absent'?'未出勤':category,reason:category==='absent'?(reason||'未出勤'):reason,note:reason,position,empId,ext,code,location,group:currentGroup,url:sourceUrl});
+      }
+      const deduped=[];
+      const seen=new Set();
+      items.forEach(item=>{const key=[item.empId,item.name,item.shift,item.group].join('|');if(!seen.has(key)){seen.add(key);deduped.push(item);}});
+      return deduped;
+    }
+    async function tryFetchAttendanceLinks(data,cfg){
+      const categories=['present','absent'];
+      let anyFetched=false;
+      for(const category of categories){
+        const links=Array.isArray(data.detailLinks?.[category])?data.detailLinks[category]:[];
+        if(!links.length)continue;
+        const rows=Array.isArray(data[category])?[...data[category]]:[];
+        for(const link of links){
+          try{
+            const realUrl=normalizeAttendanceDetailUrl(link.url,link.shift);
+            const htmlText=await fetchText(realUrl);
+            const parsed=parseAttendanceDetailHtml(htmlText,link.shift,category,cfg,realUrl);
+            if(parsed.length){
+              rows.push(...parsed);
+              anyFetched=true;
+            }else if(!rows.length){
+              rows.push(makeLinkPlaceholder(link,category,'已打开明细接口，但当前页未成功解析出人员表，可点击链接查看'));
+            }
+          }catch(e){
+            if(!rows.length)rows.push(makeLinkPlaceholder(link,category,'当前本地 HTML 直连报表可能受跨域/权限限制，请点击链接查看'));
+          }
+        }
+        if(rows.length)data[category]=dedupeAttendanceItems(rows);
+      }
+      return anyFetched?normalizeAttendanceData(data):data;
+    }
+
+    function parseAttendanceDetailWorkbook(workbook,cfg){
+      const{sheetName,rows}=getWorkbookRows(workbook,'出勤');
+      const headerRowIndex=findAttendanceHeaderRow(rows);
+      if(headerRowIndex<0)throw new Error('XLSX 中未识别到"制造中心出勤分析"明细表头');
+      const keyword=String(cfg.detailKeyword||cfg.deptKeyword||'').trim();
+      const excludePositionKeywords=String(cfg.excludePositionKeywords||'经理').split(/[，,\s]+/).map(s=>s.trim()).filter(Boolean);
+      const columnMap=buildAttendanceColumnMap(rows[headerRowIndex]||[]);
+      const groups={present:[],absent:[],late:[],leave:[]};
+      const statusMap={'出勤':'present','在岗':'present','未出勤':'absent','未到':'absent','迟到':'late','请假':'leave'};
+      let currentCategory='present';
+      let currentGroup='';
+      let inTargetGroup=!keyword;
+      for(let i=headerRowIndex+1;i<rows.length;i++){
+        const cells=(rows[i]||[]).map(v=>String(v||'').trim());
+        if(!cells.some(Boolean))continue;
+        if(isAttendanceHeaderRow(cells))continue;
+        const statusCell=getAttendanceMappedCell(cells,columnMap,'status',cells[0]||'');
+        if(statusMap[statusCell])currentCategory=statusMap[statusCell];
+        const dept=getAttendanceMappedCell(cells,columnMap,'dept',cells[1]||'');
+        if(dept){
+          currentGroup=dept;
+          if(keyword){
+            if(currentGroup.includes(keyword))inTargetGroup=true;
+            else if(currentGroup.includes('课')||currentGroup.includes('部')||currentGroup.includes('中心')||currentGroup.includes('处'))inTargetGroup=false;
+          }
+        }
+        const position=getAttendanceMappedCell(cells,columnMap,'position',cells[2]||'');
+        const empId=getAttendanceMappedCell(cells,columnMap,'empId',cells[3]||'');
+        const personName=getAttendanceMappedCell(cells,columnMap,'name',cells[4]||'');
+        const reason=pickAttendanceReason(cells,columnMap,cells[5]||'');
+        const ext=getAttendanceMappedCell(cells,columnMap,'ext',cells[6]||'');
+        const code=getAttendanceMappedCell(cells,columnMap,'code',cells[7]||'');
+        const location=getAttendanceMappedCell(cells,columnMap,'location',cells[8]||'');
+        const shift=normalizeAttendanceShift(getAttendanceMappedCell(cells,columnMap,'shift',cells[9]||''));
+        const hasPersonShape=!!(position||empId||location||shift);
+        if(!hasPersonShape)continue;
+        if(!personName||/^\d+$/.test(personName))continue;
+        if(keyword&&!inTargetGroup&&!(dept&&dept.includes(keyword)))continue;
+        if(excludePositionKeywords.length&&excludePositionKeywords.some(k=>position.includes(k)))continue;
+        groups[currentCategory].push({name:personName,shift,rawStatus:statusCell,status:currentCategory==='present'?'在岗':currentCategory==='absent'?'未出勤':currentCategory==='late'?'迟到':'请假',reason,note:reason,position,empId,ext,code,location,group:currentGroup,source:'XLSX明细'});
+      }
+      const present=dedupeAttendanceItems(groups.present);
+      const absent=dedupeAttendanceItems(groups.absent);
+      const late=dedupeAttendanceItems(groups.late);
+      const leave=dedupeAttendanceItems(groups.leave);
+      const dayShiftActual=present.filter(r=>r.shift==='白班').length+late.filter(r=>r.shift==='白班').length;
+      const nightShiftActual=present.filter(r=>r.shift==='夜班').length+late.filter(r=>r.shift==='夜班').length;
+      const attendanceActual=present.length+late.length;
+      const attendancePlan=present.length+absent.length+late.length+leave.length;
+      const detailLinks={present:[],absent:[],late:[],leave:[]};
+      const manualWhite=normalizeAttendanceDetailUrl(cfg.manualWhiteDetailUrl||'','白班');
+      const manualNight=normalizeAttendanceDetailUrl(cfg.manualNightDetailUrl||'','夜班');
+      if(manualWhite&&!present.some(r=>r.shift==='白班'))detailLinks.present.push({shift:'白班',count:0,url:manualWhite});
+      if(manualNight&&!present.some(r=>r.shift==='夜班'))detailLinks.present.push({shift:'夜班',count:0,url:manualNight});
+      return{summary:{dayShiftActual,nightShiftActual,attendanceActual,attendancePlan},present,absent,late,leave,tabCounts:{present:present.length,absent:absent.length,late:late.length,leave:leave.length},detailLinks,meta:`XLSX出勤分析 / ${keyword||cfg.deptKeyword||''} / ${sheetName}`};
+    }
+    async function parseAttendanceWorkbook(workbook,cfg){const{sheetName,ws,rows}=getWorkbookRows(workbook,'出勤');const looksLikeDetailSheet=rows.some(row=>row.some(v=>String(v||'').includes('出勤状态'))&&row.some(v=>String(v||'').includes('职位'))&&row.some(v=>String(v||'').includes('班别')));if(looksLikeDetailSheet){let detailData=parseAttendanceDetailWorkbook(workbook,cfg);detailData=await tryFetchAttendanceLinks(detailData,cfg);return normalizeAttendanceData(detailData);}const grid=buildMergedHeaderGrid(ws,8,20);const deptRow=findRowByKeyword(rows,cfg.deptKeyword||'工程处');const totalRow=findRowByKeyword(rows,'合计');const rowIndex=deptRow>=0?deptRow:totalRow;if(rowIndex<0)throw new Error('XLSX 中未找到"工程处"或"合计"行');const whiteAtWorkCol=findMetricColInGroup(grid,'白班','在职数');const whitePresentCol=findMetricColInGroup(grid,'白班','出勤数');const whiteAbsentCol=findMetricColInGroup(grid,'白班','未出勤');const nightAtWorkCol=findMetricColInGroup(grid,'夜班','在职数');const nightPresentCol=findMetricColInGroup(grid,'夜班','出勤数');const nightAbsentCol=findMetricColInGroup(grid,'夜班','未出勤');if(whitePresentCol<0||nightPresentCol<0){throw new Error('未能识别 XLSX 中 白班/夜班 的出勤列，请确认文件是"制造中心出勤看板"或"制造中心出勤分析"');}const dayShiftActual=getCellValue(rows,rowIndex,whitePresentCol);const nightShiftActual=getCellValue(rows,rowIndex,nightPresentCol);const dayAbsent=whiteAbsentCol>=0?getCellValue(rows,rowIndex,whiteAbsentCol):0;const nightAbsent=nightAbsentCol>=0?getCellValue(rows,rowIndex,nightAbsentCol):0;const dayAtWork=whiteAtWorkCol>=0?getCellValue(rows,rowIndex,whiteAtWorkCol):dayShiftActual+dayAbsent;const nightAtWork=nightAtWorkCol>=0?getCellValue(rows,rowIndex,nightAtWorkCol):nightShiftActual+nightAbsent;const attendanceActual=dayShiftActual+nightShiftActual;const summary={dayShiftActual,nightShiftActual,attendanceActual,attendancePlan:attendanceActual};const detailLinks={present:[],absent:[],late:[],leave:[]};const manualWhite=normalizeAttendanceDetailUrl(cfg.manualWhiteDetailUrl||'','白班');const manualNight=normalizeAttendanceDetailUrl(cfg.manualNightDetailUrl||'','夜班');if(manualWhite)detailLinks.present.push({shift:'白班',count:dayShiftActual,url:manualWhite});if(manualNight)detailLinks.present.push({shift:'夜班',count:nightShiftActual,url:manualNight});const linksSpec=[['absent','白班',whiteAbsentCol,dayAbsent],['absent','夜班',nightAbsentCol,nightAbsent]];for(const[category,shift,col,count]of linksSpec){if(col<0||!count)continue;const url=getCellLink(ws,rowIndex,col);if(url)detailLinks[category].push({shift,count,url:normalizeAttendanceDetailUrl(url,shift)});}if(!detailLinks.present.length){const fallbackSpec=[['present','白班',whitePresentCol,dayShiftActual],['present','夜班',nightPresentCol,nightShiftActual]];for(const[category,shift,col,count]of fallbackSpec){if(col<0||!count)continue;const url=getCellLink(ws,rowIndex,col);if(url)detailLinks[category].push({shift,count,url:normalizeAttendanceDetailUrl(url,shift)});}}let data={summary,present:[],absent:[],late:[],leave:[],tabCounts:{present:attendanceActual,absent:0,late:0,leave:0},detailLinks,meta:`XLSX出勤看板 / ${cfg.deptKeyword||'工程处'} / ${sheetName}`};data=await tryFetchAttendanceLinks(data,cfg);if(!data.present.length&&detailLinks.present.length){data.present=detailLinks.present.map(link=>makeLinkPlaceholder(link,'present'));}if(!data.absent.length&&detailLinks.absent.length){data.absent=detailLinks.absent.map(link=>makeLinkPlaceholder(link,'absent'));}return normalizeAttendanceData(data);}
+
+    const REPAIR_SYSTEM_NAMES=['徐树星','徐樹星','辛瀚'];
+    function workbookLooksLikeRepairDetail(rows){return rows.some(row=>row.some(v=>String(v||'').includes('維修員工')||String(v||'').includes('维修员工'))&&row.some(v=>String(v||'').includes('維修時間')||String(v||'').includes('维修时间'))&&row.some(v=>String(v||'').includes('工單')||String(v||'').includes('工单'))&&row.some(v=>String(v||'').includes('錯誤描述')||String(v||'').includes('错误描述')));}
+    function findRepairHeaderRow(rows){return rows.findIndex(row=>{const joined=row.map(v=>String(v||'')).join('|');return(joined.includes('維修員工')||joined.includes('维修员工'))&&(joined.includes('維修時間')||joined.includes('维修时间'))&&(joined.includes('工單')||joined.includes('工单'));});}
+    function findRepairSheet(workbook){for(const sheetName of workbook.SheetNames){const ws=workbook.Sheets[sheetName];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''}).map(row=>row.map(v=>String(v??'').trim()));const headerRow=findRepairHeaderRow(rows);if(headerRow>=0){return{sheetName,ws,rows,headerRow};}}return null;}
+    function buildRepairRecordsFromSheet(sheetInfo){const{ws,headerRow}=sheetInfo;const jsonRows=XLSX.utils.sheet_to_json(ws,{range:headerRow,raw:true,defval:''});return jsonRows.map(row=>{const cleaned={};Object.keys(row||{}).forEach(key=>{cleaned[String(key||'').trim()]=row[key];});return cleaned;}).filter(row=>Object.keys(row).length);}
+    function pickRepairField(row,keys){for(const key of keys){if(row[key]!==undefined&&row[key]!==null&&String(row[key]).trim()!==''){return String(row[key]).trim();}}return'';}
+    function parseRepairDateValue(val){if(val instanceof Date&&!Number.isNaN(val.getTime()))return val;if(typeof val==='number'&&Number.isFinite(val)){const base=new Date(Date.UTC(1899,11,30));const d=new Date(base.getTime()+Math.round(val*86400000));if(!Number.isNaN(d.getTime()))return d;}const raw=String(val||'').trim();if(!raw||/^#+$/.test(raw))return null;let s=raw.replace(/[年月]/g,'/').replace(/日/g,'').replace(/-/g,'/');s=s.replace(/\./g,'/');const d=new Date(s);if(!Number.isNaN(d.getTime()))return d;return null;}
+    function formatRepairDayLabel(dateObj){if(!(dateObj instanceof Date)||Number.isNaN(dateObj.getTime()))return'';const mm=String(dateObj.getMonth()+1).padStart(2,'0');const dd=String(dateObj.getDate()).padStart(2,'0');return mm+dd;}
+    function formatRepairIso(dateObj){if(!(dateObj instanceof Date)||Number.isNaN(dateObj.getTime()))return'';return`${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;}
+    function normalizeRepairPersonName(name){return String(name||'').replace(/[\s\u3000]/g,'').trim();}
+    function workbookLooksLikeRepairOverview(rows){return rows.some(row=>row.some(v=>/維修人員統計表|维修人员统计表/.test(String(v||''))))&&rows.some(row=>row.filter(v=>String(v||'').trim()!=='').length>=6&&row.some(v=>/總計|总计/.test(String(v||''))));}
+    function findRepairOverviewHeaderRow(rows){return rows.findIndex(row=>{const nonEmpty=row.filter(v=>String(v||'').trim()!=='').length;return nonEmpty>=6&&row.some(v=>/總計|总计/.test(String(v||'')));});}
+    function findRepairOverviewSheet(workbook){for(const sheetName of workbook.SheetNames){const ws=workbook.Sheets[sheetName];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).map(row=>row.map(v=>v??''));if(!workbookLooksLikeRepairOverview(rows))continue;const headerRow=findRepairOverviewHeaderRow(rows);if(headerRow>=0)return{sheetName,ws,rows,headerRow};}return null;}
+    function toSafeNumber(val){if(typeof val==='number'&&Number.isFinite(val))return val;const s=String(val||'').replace(/,/g,'').trim();if(!s||/^javascript:/i.test(s))return 0;const n=Number(s);return Number.isFinite(n)?n:0;}
+    function nameInFactory(factory,name){const n=normalizeRepairPersonName(name);if(!n||/^(總計|总计)$/i.test(n))return false;if(factory==='all')return true;const isSystem=REPAIR_SYSTEM_NAMES.map(normalizeRepairPersonName).includes(n);return factory==='system'?isSystem:!isSystem;}
+    function getModuleFactory(key,mod){return'all';} // 统一维修中心，不再区分
+    function isDailyModule(key,mod){if(key==='module1'||key==='module2')return true;if(key==='module3'||key==='module4')return false;return/每日|趋势|趨勢/.test(String(mod?.title||''));}
+    function buildRepairDetailRow(row,fallbackName=''){return{维修员:pickRepairField(row,['維修員工','维修员工'])||fallbackName||'--',维修时间:pickRepairField(row,['維修時間','维修时间'])||'--',工单:pickRepairField(row,['工單','工单'])||'--',序号:pickRepairField(row,['序號','序号'])||'--',板卡料号:pickRepairField(row,['板卡料號','板卡料号'])||'--',错误描述:pickRepairField(row,['錯誤描述','错误描述'])||'--',维修方式:pickRepairField(row,['維修方式','维修方式'])||'--',维修位置:pickRepairField(row,['維修位置','维修位置'])||'--',原因描述:pickRepairField(row,['原因描述'])||'--',状态:pickRepairField(row,['維修狀態','维修状态'])||'--'};}
+
+    function parseRepairOverviewWorkbookForModule(workbook,mod){const sheetInfo=findRepairOverviewSheet(workbook);if(!sheetInfo)throw new Error('XLSX 中未找到"维修人员统计表"结构');const{rows,headerRow,sheetName}=sheetInfo;const header=(rows[headerRow]||[]).map(v=>String(v||'').trim());const people=[];for(let c=1;c<header.length;c++){const name=header[c];if(!name||/總計|总计/.test(name))continue;people.push({col:c,name});}const dataRows=[];for(let r=headerRow+1;r<rows.length;r++){const row=rows[r]||[];const first=String(row[0]||'').trim();if(!first)continue;if(/總計|总计/.test(first))break;const dt=parseRepairDateValue(first);if(!dt)continue;dataRows.push({iso:formatRepairIso(dt),label:formatRepairDayLabel(dt),row});}if(!dataRows.length)throw new Error('维修人员统计表中未找到日期数据');const moduleFactory=getModuleFactory(mod.key,mod);const selectedPeople=people.filter(p=>nameInFactory(moduleFactory,p.name));if(!selectedPeople.length)throw new Error((moduleFactory==='system'?'系统维修':'产线维修')+' 未匹配到人员列');const dailyMode=isDailyModule(mod.key,mod);if(dailyMode){const lastRows=dataRows.slice(-7);const labels=[];const values=[];const detailMap={};lastRows.forEach(item=>{labels.push(item.label);const details=[];let total=0;selectedPeople.forEach(person=>{const qty=toSafeNumber(item.row[person.col]);if(qty>0){total+=qty;details.push({维修员:person.name,日期:item.iso,数量:qty});}});values.push(total);detailMap[item.label]=details;});return{labels,values,detailMap,meta:'',wip:''};}const target=dataRows[dataRows.length-1];const items=[];const detailMap={};selectedPeople.forEach(person=>{const qty=toSafeNumber(target.row[person.col]);if(qty>0){items.push({name:person.name,qty});detailMap[person.name]=[{维修员:person.name,日期:target.iso,数量:qty}];}});items.sort((a,b)=>b.qty-a.qty||a.name.localeCompare(b.name,'zh'));return{labels:items.map(x=>x.name),values:items.map(x=>x.qty),detailMap,meta:'',wip:''};}
+    function chooseRepairTargetIso(records){const today=new Date();const todayIso=formatRepairIso(today);const validIsos=records.map(row=>formatRepairIso(parseRepairDateValue(pickRepairField(row,['維修時間','维修时间','開工日期','开工日期'])))).filter(Boolean);if(!validIsos.length)return'';if(validIsos.includes(todayIso))return todayIso;return validIsos.sort((a,b)=>a.localeCompare(b)).slice(-1)[0]||'';}
+    function parseRepairWorkbookForModule(workbook,mod){const sheetInfo=findRepairSheet(workbook);if(!sheetInfo)throw new Error('XLSX 中未找到维修明细表头');const records=buildRepairRecordsFromSheet(sheetInfo).filter(row=>{const name=pickRepairField(row,['維修員工','维修员工']);const status=pickRepairField(row,['維修狀態','维修状态']);return name&&(!status||status.includes('完成')||status.includes('已修')||status.includes('結案')||status.includes('结案'));});if(!records.length)throw new Error('维修明细为空，未找到可统计记录');const moduleFactory=getModuleFactory(mod.key,mod);const filtered=records.filter(row=>{const name=pickRepairField(row,['維修員工','维修员工']);return nameInFactory(moduleFactory,name);});if(!filtered.length)throw new Error((moduleFactory==='system'?'系统维修':'产线维修')+' 未匹配到维修记录，请检查人员划分');const dailyMode=isDailyModule(mod.key,mod);if(dailyMode){const dayBuckets={};filtered.forEach(row=>{const dt=parseRepairDateValue(pickRepairField(row,['維修時間','维修时间','開工日期','开工日期']));const iso=formatRepairIso(dt)||'undated';const label=formatRepairDayLabel(dt)||'未标日期';if(!dayBuckets[iso])dayBuckets[iso]={label,rows:[]};dayBuckets[iso].rows.push(buildRepairDetailRow(row));});let orderedIsos=Object.keys(dayBuckets).filter(iso=>iso!=='undated').sort((a,b)=>a.localeCompare(b)).slice(-7);if(!orderedIsos.length&&dayBuckets.undated)orderedIsos=['undated'];const labels=orderedIsos.map(iso=>dayBuckets[iso].label);const detailMap={};orderedIsos.forEach(iso=>{const keyLabel=dayBuckets[iso].label;detailMap[keyLabel]=dayBuckets[iso].rows;});const values=orderedIsos.map(iso=>dayBuckets[iso].rows.length);return{labels,values,detailMap,meta:`维修中心 / 最近7日产出 / ${sheetInfo.sheetName}`,wip:''};}const targetIso=chooseRepairTargetIso(filtered);const latestRows=filtered.filter(row=>{if(!targetIso)return true;const iso=formatRepairIso(parseRepairDateValue(pickRepairField(row,['維修時間','维修时间','開工日期','开工日期'])));return iso===targetIso;});const personMap={};latestRows.forEach(row=>{const name=pickRepairField(row,['維修員工','维修员工'])||'未标姓名';if(!nameInFactory(moduleFactory,name))return;if(!personMap[name])personMap[name]=[];personMap[name].push(buildRepairDetailRow(row,name));});const labels=Object.keys(personMap).sort((a,b)=>personMap[b].length-personMap[a].length||a.localeCompare(b,'zh'));const values=labels.map(name=>personMap[name].length);return{labels,values,detailMap:personMap,meta:`维修中心 / 今日个人产出 / ${targetIso?targetIso.replace(/-/g,'').slice(4):sheetInfo.sheetName}`,wip:''};}
+    async function parseModuleWorkbook(workbook,mod){const overviewSheet=findRepairOverviewSheet(workbook);if(overviewSheet){return normalizeModuleData(parseRepairOverviewWorkbookForModule(workbook,mod||{}));}const sheetInfo=findRepairSheet(workbook);if(sheetInfo&&workbookLooksLikeRepairDetail(sheetInfo.rows)){return normalizeModuleData(parseRepairWorkbookForModule(workbook,mod||{}));}const{rows}=getWorkbookRows(workbook,'');const usefulRows=rows.filter(row=>row.some(v=>String(v||'').trim()!==''));if(!usefulRows.length)throw new Error('XLSX 中未找到有效表格');const csv=rowsToCsv(usefulRows);return normalizeModuleData(parseCsvToModule(csv));}
+    async function detectAndParseBoundFile(file,cfg,isAttendance){const fileName=String(file?.name||cfg?.boundFileName||'');const lower=fileName.toLowerCase();if(lower.endsWith('.xlsx')||lower.endsWith('.xlsm')||lower.endsWith('.xls')){await ensureXlsxLib();const buffer=await file.arrayBuffer();const workbook=XLSX.read(buffer,{type:'array',cellDates:true});return isAttendance?await parseAttendanceWorkbook(workbook,cfg):await parseModuleWorkbook(workbook,cfg);}const raw=String(await file.text()).trim();if(!raw)throw new Error('文件内容为空');if(lower.endsWith('.json')||raw.startsWith('{')||raw.startsWith('[')){return isAttendance?normalizeAttendanceData(JSON.parse(raw)):normalizeModuleData(JSON.parse(raw));}if(lower.endsWith('.html')||lower.endsWith('.htm')||/<table[\s>]/i.test(raw)){const csv=rowsToCsv(parseHtmlTableRows(raw));return isAttendance?normalizeAttendanceData(parseCsvToAttendance(csv)):normalizeModuleData(parseCsvToModule(csv));}return isAttendance?normalizeAttendanceData(parseCsvToAttendance(raw)):normalizeModuleData(parseCsvToModule(raw));}
+    async function getBoundFileData(key,cfg,isAttendance){const handle=await resolveFileHandle(key,{includeShared:false});if(handle&&await ensureHandlePermission(handle)){const file=await handle.getFile();return await detectAndParseBoundFile(file,cfg,isAttendance);}const snap=await resolveFileSnapshot(key);const file=fileFromSnapshot(snap);if(file)return await detectAndParseBoundFile(file,cfg,isAttendance);const sharedHandle=isModuleKey(key)?await resolveFileHandle(SHARED_REPAIR_HANDLE_KEY,{includeShared:false}):null;if(sharedHandle&&await ensureHandlePermission(sharedHandle)){const sharedFile=await sharedHandle.getFile();return await detectAndParseBoundFile(sharedFile,cfg,isAttendance);}throw new Error((handle||sharedHandle)?'未授予共享盘文件读取权限，且没有可用快照':'未绑定共享盘文件，请先点「绑定文件（永久）」');}
+
+    function syncConfigModeUI(){const mode=document.getElementById('cfgSourceType').value;document.getElementById('cfgUrlField').classList.toggle('hidden-by-mode',!(mode==='url-json'||mode==='url-csv'));document.getElementById('cfgBindCard').style.display=mode==='bound-file'?'block':'none';document.getElementById('cfgManualJsonField').classList.toggle('hidden-by-mode',!(mode==='manual-json'||mode==='mock'));}
+    async function updateBoundFileNameInModal(){const cfg=getEditingCfg();const handle=editingKey?await resolveFileHandle(editingKey,{includeShared:false}):null;document.getElementById('cfgBoundFileName').value=(handle&&handle.name)||cfg?.boundFileName||'';}
+    async function handlePickFile(persist=true){if(!editingKey)return;try{const picked=await acquireFileSelection(editingKey,true);if(picked.handle){await rememberFileHandle(editingKey,picked.handle,true);if(picked.file)await rememberFileSnapshot(editingKey,picked.file,{applyAllModules:false,broadcast:true});document.getElementById('cfgSourceType').value='bound-file';syncConfigModeUI();await updateBoundFileNameInModal();toast('✅ 永久绑定成功：'+picked.handle.name);return;}if(picked.file){await handleFallbackFile(picked.file,true,editingKey,{fromParent:true});return;}const input=document.getElementById('dataBindFile');input.dataset.persist='1';input.dataset.targetKey=editingKey;input.dataset.syncModules='0';input.click();}catch(e){if(String(e).includes('AbortError'))return;toast('选择文件失败：'+e.message);}}
+    async function pullBoundNow(){if(!editingKey)return;const cfg=getEditingCfg();try{cfg.sourceType='bound-file';saveState();if(editingKey==='attendance'){await refreshAttendance(true);renderAttendance();}else{await refreshModule(editingKey,true);renderModule(editingKey,true);}await updateBoundFileNameInModal();toast('已按绑定文件抓取最新数据');}catch(e){toast('抓取失败：'+e.message);}}
+    async function clearBoundNow(){if(!editingKey)return;try{await clearBoundHandle(editingKey);await updateBoundFileNameInModal();document.getElementById('cfgSourceType').value='mock';syncConfigModeUI();toast('文件绑定已解除');}catch(e){toast('清除绑定失败：'+e.message);}}
+    async function handleFallbackFile(file,persist=false,targetKey=null,options={}){const key=targetKey||editingKey;if(!key||!file)return;try{const cfg=getCfgByKey(key);const isAttendance=key==='attendance';const lower=String(file.name||'').toLowerCase();const applyAllModules=!!options.applyAllModules;if(!isAttendance&&applyAllModules&&/\.(xlsx|xlsm|xls)$/.test(lower)){await ensureXlsxLib();const buffer=await file.arrayBuffer();const workbook=XLSX.read(buffer,{type:'array',cellDates:true});const overviewSheet=findRepairOverviewSheet(workbook);const repairSheet=findRepairSheet(workbook);if(overviewSheet||(repairSheet&&workbookLooksLikeRepairDetail(repairSheet.rows))){Object.keys(state.modules).forEach(k=>{const modData=normalizeModuleData(overviewSheet?parseRepairOverviewWorkbookForModule(workbook,state.modules[k]||{}):parseRepairWorkbookForModule(workbook,state.modules[k]||{}));state.modules[k].sourceType=persist?'bound-file':'manual-json';state.modules[k].manualJson=JSON.stringify(modData,null,2);state.modules[k].boundFileName=file.name||'';state.modules[k].boundFileSavedAt=Date.now();state.modules[k].currentData=modData;});if(persist)await rememberSnapshotBuffer(key,file,buffer,{applyAllModules:true,broadcast:true});saveState();if(editingKey&&editingKey===key){document.getElementById('cfgManualJson').value=state.modules[key].manualJson;document.getElementById('cfgBoundFileName').value=file.name||'';document.getElementById('cfgSourceType').value=persist?'bound-file':'manual-json';syncConfigModeUI();}renderAll();renderSharedDocsTable();scheduleSyncBroadcast('repair-report-import');toast('四个模块已按同一维修统计报表完成更新');return;}}const data=await detectAndParseBoundFile(file,cfg,isAttendance);if(isAttendance){const norm=normalizeAttendanceData(data);state.attendance.sourceType=persist?'bound-file':'manual-json';state.attendance.manualJson=JSON.stringify(norm,null,2);state.attendance.boundFileName=file.name||'';state.attendance.boundFileSavedAt=Date.now();state.attendance.currentData=norm;renderAttendance();}else if(applyAllModules){const norm=normalizeModuleData(data);Object.keys(state.modules).forEach(k=>{state.modules[k].sourceType=persist?'bound-file':'manual-json';state.modules[k].manualJson=JSON.stringify(norm,null,2);state.modules[k].boundFileName=file.name||'';state.modules[k].boundFileSavedAt=Date.now();state.modules[k].currentData=deepClone(norm);});renderAll();}else{const norm=normalizeModuleData(data);cfg.sourceType=persist?'bound-file':'manual-json';cfg.manualJson=JSON.stringify(norm,null,2);cfg.boundFileName=file.name||'';cfg.boundFileSavedAt=Date.now();cfg.currentData=norm;renderModule(key,true);}if(persist)await rememberFileSnapshot(key,file,{applyAllModules,broadcast:true});saveState();if(editingKey&&editingKey===key){if(key==='attendance'){document.getElementById('cfgManualJson').value=state.attendance.manualJson;}else{document.getElementById('cfgManualJson').value=cfg.manualJson;}document.getElementById('cfgBoundFileName').value=file.name||'';document.getElementById('cfgSourceType').value=persist?'bound-file':'manual-json';syncConfigModeUI();}renderSharedDocsTable();scheduleSyncBroadcast('file-import');toast('文件已导入');}catch(e){toast('文件读取失败：'+e.message);}}
+
+    function loadState(){try{const raw=safeLocalStore.getItem(STORAGE_KEY);if(!raw)return deepClone(defaultState);const parsed=JSON.parse(raw);const merged=deepClone(defaultState);merged.activeAttendanceTab=parsed.activeAttendanceTab||'present';if(parsed.attendance)merged.attendance={...merged.attendance,...parsed.attendance};if(parsed.modules){Object.keys(merged.modules).forEach(k=>{if(parsed.modules[k])merged.modules[k]={...merged.modules[k],...parsed.modules[k]};});}return merged;}catch(e){return deepClone(defaultState);}}
+    function saveState(skipSync=false){try{safeLocalStore.setItem(STORAGE_KEY,JSON.stringify(state));}catch(e){console.warn('[state] save failed',e);}if(!skipSync)scheduleSyncBroadcast('state-save');}
+    function deepClone(obj){return JSON.parse(JSON.stringify(obj));}
+    function toast(text){alert(text);}
+
+    function csvSplit(line){const result=[];let cur='';let inQuotes=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(inQuotes&&line[i+1]==='"'){cur+='"';i++;}else{inQuotes=!inQuotes;}}else if(ch===','&&!inQuotes){result.push(cur.trim());cur='';}else{cur+=ch;}}result.push(cur.trim());return result;}
+    function parseCsvToModule(text){const lines=text.trim().split(/\r?\n/).filter(Boolean);if(!lines.length)throw new Error('CSV为空');const head=csvSplit(lines[0]).map(s=>s.toLowerCase());const labelIndex=head.indexOf('label');const valueIndex=head.indexOf('value');if(labelIndex<0||valueIndex<0)throw new Error('模块CSV至少需包含 label,value 两列');const labels=[];const values=[];const detailMap={};let meta='';let wip='';const extraCols=head.map((name,idx)=>({name,idx})).filter(x=>!['label','value'].includes(x.name));for(let i=1;i<lines.length;i++){const row=csvSplit(lines[i]);const label=row[labelIndex]||'';const value=Number(row[valueIndex]||0);labels.push(label);values.push(value);const detailObj={};extraCols.forEach(col=>{detailObj[col.name]=row[col.idx]??'';});if(Object.keys(detailObj).length){detailMap[label]=[detailObj];if(detailObj.meta)meta=detailObj.meta;if(detailObj.wip)wip=detailObj.wip;}}return{labels,values,detailMap,meta,wip};}
+    function parseCsvToAttendance(text){
+      const lines=text.trim().split(/\r?\n/).filter(Boolean);
+      if(!lines.length)throw new Error('CSV为空');
+      const head=csvSplit(lines[0]).map(s=>normalizeAttendanceHeader(s).toLowerCase());
+      const idxAny=(names)=>{for(const name of names){const target=normalizeAttendanceHeader(name).toLowerCase();const hit=head.indexOf(target);if(hit>=0)return hit;}return-1;};
+      const readCol=(row,names)=>{for(const name of names){const hit=idxAny([name]);const val=hit>=0?String(row[hit]||'').trim():'';if(val)return val;}const fallbackHit=idxAny(names);return fallbackHit>=0?(row[fallbackHit]||''):'';};
+      const rows=[];
+      for(let i=1;i<lines.length;i++){
+        const row=csvSplit(lines[i]);
+        rows.push({name:readCol(row,['name','姓名','员工姓名']),shift:normalizeAttendanceShift(readCol(row,['shift','班别','班次'])),line:readCol(row,['line','产线','线别']),status:readCol(row,['status','出勤状态','状态']),checkIn:readCol(row,['checkin','check_in','打卡时间','签到时间']),reason:readCol(row,['reason','未到原因','备注','说明']),note:readCol(row,['note','备注','未到原因','说明']),lateMin:readCol(row,['latemin','late_min','迟到分钟'])});
+      }
+      const groups={present:[],absent:[],late:[],leave:[]};
+      rows.forEach(row=>{const tab=inferAttendanceTab(row,'present');groups[tab].push({...row,status:ATTENDANCE_STATUS[tab]?.label||row.status});});
+      const dayShiftActual=rows.filter(r=>r.shift==='白班'&&inferAttendanceTab(r,'present')!=='absent'&&inferAttendanceTab(r,'present')!=='leave').length;
+      const nightShiftActual=rows.filter(r=>r.shift==='夜班'&&inferAttendanceTab(r,'present')!=='absent'&&inferAttendanceTab(r,'present')!=='leave').length;
+      const attendanceActual=groups.present.length+groups.late.length;
+      const attendancePlan=rows.length;
+      return{summary:{dayShiftActual,nightShiftActual,attendanceActual,attendancePlan},present:groups.present,absent:groups.absent,late:groups.late,leave:groups.leave,meta:'CSV出勤导入'};
+    }
+    async function fetchJson(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('请求失败：'+res.status);return res.json();}
+    async function fetchText(url){const fixedUrl=normalizeReportUrl(url);const res=await fetch(fixedUrl,{cache:'no-store',credentials:'include'});if(!res.ok)throw new Error('请求失败：'+res.status);return res.text();}
+    function normalizeModuleData(data){if(!data||!Array.isArray(data.labels)||!Array.isArray(data.values)){throw new Error('模块数据必须包含 labels[] 和 values[]');}return{labels:data.labels.map(v=>String(v)),values:data.values.map(v=>Number(v||0)),detailMap:data.detailMap||{},meta:data.meta||'',wip:data.wip??''};}
+    function normalizeAttendanceData(data){
+      if(!data)throw new Error('出勤数据为空');
+      const source={present:Array.isArray(data.present)?data.present:[],absent:Array.isArray(data.absent)?data.absent:[],late:Array.isArray(data.late)?data.late:[],leave:Array.isArray(data.leave)?data.leave:[]};
+      const byPerson=new Map();
+      Object.entries(source).forEach(([tab,rows])=>{
+        rows.forEach(row=>{
+          if(!row||isAttendancePlaceholder(row))return;
+          const record=normalizeAttendanceItem(row,tab);
+          if(!record.key)return;
+          byPerson.set(record.key,pickAttendanceRecord(byPerson.get(record.key),record));
+        });
+      });
+      if(byPerson.size){
+        const groups={present:[],absent:[],late:[],leave:[]};
+        [...byPerson.values()].forEach(record=>groups[record.tab].push(record.item));
+        let dayShiftActual=groups.present.filter(r=>r.shift==='白班').length+groups.late.filter(r=>r.shift==='白班').length;
+        let nightShiftActual=groups.present.filter(r=>r.shift==='夜班').length+groups.late.filter(r=>r.shift==='夜班').length;
+        if(!dayShiftActual&&!nightShiftActual&&(data.summary?.dayShiftActual||data.summary?.nightShiftActual)){
+          dayShiftActual=Number(data.summary.dayShiftActual||0);
+          nightShiftActual=Number(data.summary.nightShiftActual||0);
+        }
+        const attendanceActual=groups.present.length+groups.late.length;
+        const attendancePlan=attendanceActual+groups.absent.length+groups.leave.length;
+        const tabCounts={present:groups.present.length,absent:groups.absent.length,late:groups.late.length,leave:groups.leave.length};
+        return{summary:{dayShiftActual,nightShiftActual,attendanceActual,attendancePlan},present:groups.present,absent:groups.absent,late:groups.late,leave:groups.leave,tabCounts,detailLinks:data.detailLinks||{},meta:data.meta||''};
+      }
+      const present=dedupeAttendanceItems(source.present);
+      const absent=dedupeAttendanceItems(source.absent);
+      const late=dedupeAttendanceItems(source.late);
+      const leave=dedupeAttendanceItems(source.leave);
+      const fallbackSummary=data.summary||{dayShiftActual:present.filter(r=>r.shift==='白班').length+late.filter(r=>r.shift==='白班').length,nightShiftActual:present.filter(r=>r.shift==='夜班').length+late.filter(r=>r.shift==='夜班').length,attendanceActual:present.length+late.length,attendancePlan:present.length+absent.length+late.length+leave.length};
+      const summary={dayShiftActual:Number(fallbackSummary.dayShiftActual||0),nightShiftActual:Number(fallbackSummary.nightShiftActual||0),attendanceActual:Number(fallbackSummary.attendanceActual||0),attendancePlan:Number(fallbackSummary.attendancePlan||0)};
+      const overviewSummaryOnly=String(data.meta||'').includes('XLSX出勤看板')&&!present.length&&!absent.length&&!late.length&&!leave.length;
+      if(overviewSummaryOnly)summary.attendancePlan=summary.attendanceActual;
+      const tabCounts=overviewSummaryOnly?{present:summary.attendanceActual,absent:0,late:0,leave:0}:(data.tabCounts||{present:present.length||summary.attendanceActual,absent:absent.length,late:late.length,leave:leave.length});
+      return{summary,present,absent,late,leave,tabCounts,detailLinks:data.detailLinks||{},meta:data.meta||''};
+    }
+    async function getModuleData(mod){if(mod.sourceType==='mock'||mod.sourceType==='manual-json'){return normalizeModuleData(JSON.parse(mod.manualJson));}if(mod.sourceType==='url-json'){return normalizeModuleData(await fetchJson(mod.sourceUrl));}if(mod.sourceType==='url-csv'){return normalizeModuleData(parseCsvToModule(await fetchText(mod.sourceUrl)));}if(mod.sourceType==='bound-file'){return await getBoundFileData(mod.key,mod,false);}throw new Error('未知模块数据源');}
+    async function getAttendanceData(att){if(att.sourceType==='mock'||att.sourceType==='manual-json'){return normalizeAttendanceData(JSON.parse(att.manualJson));}if(att.sourceType==='url-json'){return normalizeAttendanceData(await fetchJson(att.sourceUrl));}if(att.sourceType==='url-csv'){return normalizeAttendanceData(parseCsvToAttendance(await fetchText(att.sourceUrl)));}if(att.sourceType==='bound-file'){return await getBoundFileData(att.key,att,true);}throw new Error('未知出勤数据源');}
+    async function refreshAttendance(silent=false){try{const data=await getAttendanceData(state.attendance);state.attendance.currentData=data;saveState();renderAttendance();scheduleSyncBroadcast('attendance-refresh');if(!silent)toast('出勤数据已刷新');}catch(e){if(!silent)toast('出勤刷新失败：'+e.message);}}
+    async function refreshModule(key,silent=false){try{const data=await getModuleData(state.modules[key]);state.modules[key].currentData=data;if(data.wip!==''&&data.wip!==undefined&&!state.modules[key].wip){state.modules[key].wip=String(data.wip);}saveState();renderModule(key,true);scheduleSyncBroadcast(key+'-refresh');if(!silent)toast(state.modules[key].title+' 已刷新');}catch(e){if(!silent)toast(state.modules[key].title+' 刷新失败：'+e.message);}}
+    function startTimer(key,isAttendance=false){stopTimer(key);const sec=isAttendance?Number(state.attendance.refreshSec||0):Number(state.modules[key].refreshSec||0);if(!sec||sec<10)return;timers[key]=setInterval(()=>{if(isAttendance)refreshAttendance(true);else refreshModule(key,true);},sec*1000);}
+    function stopTimer(key){if(timers[key]){clearInterval(timers[key]);delete timers[key];}}
+    function applyAllTimers(){startTimer('attendance',true);Object.keys(state.modules).forEach(k=>startTimer(k,false));}
+
+    function buildAttendanceRows(data,tab){const baseRows=Array.isArray(data[tab])?data[tab]:[];if(baseRows.length)return baseRows;const links=Array.isArray(data.detailLinks?.[tab])?data.detailLinks[tab]:[];if(!links.length)return[];return links.map(link=>makeLinkPlaceholder(link,tab));}
+    function openAttendanceMetricDetail(data,shift){const rows=buildAttendanceRows(data,'present').filter(row=>!shift||row.shift===shift);openDetail({title:shift?`${shift}出勤详情`:'总出勤详情',sub:shift?`${shift}实到：${shift==='白班'?data.summary.dayShiftActual:data.summary.nightShiftActual}`:`总实到：${data.summary.attendanceActual}`,rows});}
+    function openAttendanceTabDetail(data,tab){const rows=buildAttendanceRows(data,tab);const count=(data.tabCounts&&data.tabCounts[tab]!==undefined)?data.tabCounts[tab]:rows.length;openDetail({title:tabName(tab),sub:`人数：${count}`,rows});}
+
+    function polarToCartesian(cx,cy,r,angle){const rad=(angle-90)*Math.PI/180;return{x:cx+(r*Math.cos(rad)),y:cy+(r*Math.sin(rad))};}
+    function describeAttendanceArc(cx,cy,r,startAngle,endAngle){const start=polarToCartesian(cx,cy,r,endAngle);const end=polarToCartesian(cx,cy,r,startAngle);const largeArcFlag=endAngle-startAngle<=180?'0':'1';return`M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;}
+
+    function buildAttendancePieSvg(data){
+      const counts=data.tabCounts||{present:data.present.length,absent:data.absent.length,late:data.late.length,leave:data.leave.length};
+      const items=[{tab:'present',label:'在岗',value:Number(counts.present||0),color:'#00dcff'},{tab:'absent',label:'未出勤',value:Number(counts.absent||0),color:'#ff3366'},{tab:'late',label:'迟到',value:Number(counts.late||0),color:'#ffcc00'},{tab:'leave',label:'请假',value:Number(counts.leave||0),color:'#9933ff'}].filter(item=>item.value>0);
+      if(!items.length)return'<div class="att-pie-empty">当前无出勤分布数据</div>';
+      const total=items.reduce((sum,item)=>sum+item.value,0)||1;
+      let angle=-90;
+      const arcs=items.map(item=>{const span=(item.value/total)*360;const start=angle;const end=angle+span;angle=end;return`<path class="attendance-pie-segment" data-tab="${item.tab}" d="${describeAttendanceArc(82,88,38,start,end)}" fill="none" stroke="${item.color}" stroke-width="16" stroke-linecap="round" style="filter:drop-shadow(0 0 4px ${item.color}66);"></path>`;}).join('');
+      const legend=items.map((item,idx)=>`<g class="attendance-pie-legend-item" data-tab="${item.tab}" transform="translate(${170+(idx%2)*90},${34+Math.floor(idx/2)*46})"><rect x="0" y="-7" width="10" height="10" rx="2" fill="${item.color}" style="filter:drop-shadow(0 0 4px ${item.color});"></rect><text x="15" y="0" fill="rgba(180,210,240,.8)" font-size="11">${item.label}</text><text x="15" y="17" fill="${item.color}" font-size="15" font-weight="700">${item.value}</text></g>`).join('');
+      const rate=Math.round(((Number(data.summary.attendanceActual||0))/Math.max(Number(data.summary.attendancePlan||0),1))*100);
+      return`<svg viewBox="0 0 360 176" preserveAspectRatio="xMidYMid meet"><defs><radialGradient id="pieGlow" cx="50%" cy="50%"><stop offset="0%" stop-color="rgba(0,220,255,.08)"/><stop offset="100%" stop-color="transparent"/></radialGradient></defs><g style="transform-origin:82px 88px;animation:spinOrbit 14s linear infinite"><circle cx="82" cy="88" r="50" fill="none" stroke="rgba(0,220,255,.18)" stroke-dasharray="2 8" stroke-width="1.4"></circle><circle cx="82" cy="38" r="3.4" fill="#7df9ff" style="filter:drop-shadow(0 0 8px rgba(0,220,255,.85));"></circle></g><circle cx="82" cy="88" r="38" fill="none" stroke="rgba(0,220,255,.06)" stroke-width="16"></circle>${arcs}<circle cx="82" cy="88" r="24" fill="url(#pieGlow)"></circle><text x="82" y="83" fill="rgba(180,210,240,.6)" font-size="10" text-anchor="middle" letter-spacing="1">出勤率</text><text x="82" y="102" fill="#00dcff" font-size="22" font-weight="700" text-anchor="middle" style="text-shadow:0 0 12px rgba(0,220,255,.6)">${rate}%</text>${legend}</svg>`;
+    }
+
+    function bindAttendancePie(data){const wrap=document.getElementById('attendancePieWrap');wrap.querySelectorAll('.attendance-pie-segment,.attendance-pie-legend-item').forEach(el=>{el.addEventListener('click',()=>{const tab=el.dataset.tab||'present';state.activeAttendanceTab=tab;saveState();renderAttendance();openAttendanceTabDetail(data,tab);});});}
+
+    function renderAttendance(){
+      const data=normalizeAttendanceData(state.attendance.currentData||JSON.parse(state.attendance.manualJson));
+      state.attendance.currentData=data;
+      animateNumber(document.getElementById('attendanceDayShift'),data.summary.dayShiftActual??0);
+      animateNumber(document.getElementById('attendanceNightShift'),data.summary.nightShiftActual??0);
+      animateNumber(document.getElementById('attendanceTotal'),data.summary.attendanceActual??0,(val)=>`${Math.round(val)} / ${data.summary.attendancePlan??0}`);
+      const counts=data.tabCounts||{present:data.present.length,absent:data.absent.length,late:data.late.length,leave:data.leave.length};
+      document.querySelectorAll('#attendanceTabs .tab-btn').forEach(btn=>{const tab=btn.dataset.tab;const nameMap={present:'在岗',absent:'未出勤',late:'迟到',leave:'请假'};btn.textContent=`${nameMap[tab]}(${counts[tab]??0})`;btn.classList.toggle('active',state.activeAttendanceTab===tab);});
+      const pieWrap=document.getElementById('attendancePieWrap');
+      pieWrap.innerHTML=buildAttendancePieSvg(data);
+      bindAttendancePie(data);
+      const list=document.getElementById('attendanceList');
+      const rows=buildAttendanceRows(data,state.activeAttendanceTab);
+      if(list){if(!rows.length){list.innerHTML='<div class="list-empty">当前无数据</div>';}else{const header=`<div class="list-row list-header"><div>姓名</div><div>班别</div><div>状态/时间</div></div>`;const html=rows.map((row,idx)=>{const statusText=row.checkIn?row.checkIn:(normalizeAttendanceReason(row)||row.status||'--');return`<div class="list-row attendance-row" data-tab="${state.activeAttendanceTab}" data-index="${idx}"><div>${escapeHtml(row.name||'--')}</div><div>${escapeHtml(row.shift||'--')}</div><div>${escapeHtml(statusText||'--')}</div></div>`;}).join('');list.innerHTML=header+html;list.querySelectorAll('.attendance-row').forEach(el=>{el.addEventListener('click',()=>{const idx=Number(el.dataset.index);const item=rows[idx];const detailItem={...item};delete detailItem.line;openDetail({title:`${tabName(state.activeAttendanceTab)}详情`,sub:`${item.name||'--'} / ${item.shift||'--'}`,rows:[detailItem]});});});}}
+      const dayCard=document.getElementById('dayCard');const nightCard=document.getElementById('nightCard');const totalCard=document.getElementById('totalCard');
+      dayCard.onclick=()=>openAttendanceMetricDetail(data,'白班');nightCard.onclick=()=>openAttendanceMetricDetail(data,'夜班');totalCard.onclick=()=>openAttendanceMetricDetail(data,'');
+      syncOrgNodes(data);
+    }
+
+    function tabName(tab){return{present:'在岗名单',absent:'未出勤',late:'迟到',leave:'请假'}[tab]||'详情';}
+
+    function scheduleAmbientMotion(key){if(ambientMotionTimers[key])clearTimeout(ambientMotionTimers[key]);const delay=26000+Math.floor(Math.random()*26000);ambientMotionTimers[key]=setTimeout(()=>{const mod=state.modules[key];if(!mod)return;const data=mod.currentData||normalizeModuleData(JSON.parse(mod.manualJson));animateModuleChart(key,data,1000);scheduleAmbientMotion(key);},delay);}
+
+    function animateModuleChart(key,data,duration=1000){
+      // Instead of animating hidden sinks, just re-render combined
+      if(key==='module1'||key==='module2') renderCombinedTrend();
+      if(key==='module3'||key==='module4') renderCombinedPersonal();
+    }
+
+    function renderModule(key,animate=false){
+      const mod=state.modules[key];
+      const data=mod.currentData||normalizeModuleData(JSON.parse(mod.manualJson));
+      const titleEl=document.getElementById('title-'+key);
+      if(titleEl)titleEl.textContent=mod.title;
+      const tabTitleEl=document.getElementById('tab-title-'+key);
+      if(tabTitleEl)tabTitleEl.textContent=mod.title.replace('产线维修 · ','').replace('系统维修 · ','');
+      // hidden sink elements only – no visible chart drawn for individual keys
+      scheduleAmbientMotion(key);
+      // re-render the combined panels
+      if(key==='module1'||key==='module2') renderCombinedTrend();
+      if(key==='module3'||key==='module4') renderCombinedPersonal();
+      // also update full page if active
+      const activePage=document.querySelector('.chart-panel-page.active');
+      if(activePage&&activePage.id==='page-trend') renderCombinedFull('trend');
+      if(activePage&&activePage.id==='page-personal') renderCombinedFull('personal');
+    }
+
+    function renderAll(){
+      renderAttendance();
+      Object.keys(state.modules).forEach(k=>{try{state.modules[k].currentData=state.modules[k].currentData||normalizeModuleData(JSON.parse(state.modules[k].manualJson));}catch(_){}});
+      renderCombinedTrend();
+      renderCombinedPersonal();
+    }
+
+    // ── CHART BUILDERS (SCI-FI COLOR SCHEME) ──
+    function buildChartSvg(key,type,labels,values,fullSize=false){
+      if(!labels.length)return'<div class="list-empty-chart">当前无数据</div>';
+      return type==='hbar'?buildHBarSvg(key,labels,values,fullSize):type==='bar'?buildBarSvg(key,labels,values,fullSize):buildLineSvg(key,labels,values,fullSize);
+    }
+
+    function buildLineSvg(key,labels,values,fullSize=false){
+      const width=760,height=fullSize?320:260,left=46,right=18,top=16,bottom=38;
+      const plotW=width-left-right;const plotH=height-top-bottom;
+      const max=Math.max(...values,1);
+      const stepX=labels.length===1?plotW:plotW/(labels.length-1);
+      const points=values.map((v,i)=>{const x=left+stepX*i;const y=top+plotH-(v/max)*plotH;return{x,y,v,label:labels[i]};});
+      const polyline=points.map(p=>`${p.x},${p.y}`).join(' ');
+      const area=`M ${points[0].x} ${top+plotH} ${points.map(p=>`L ${p.x} ${p.y}`).join(' ')} L ${points[points.length-1].x} ${top+plotH} Z`;
+      const grid=Array.from({length:5},(_,i)=>{const y=top+(plotH/4)*i;const value=Math.round(max-(max/4)*i);return`<line class="svg-axis" x1="${left}" y1="${y}" x2="${width-right}" y2="${y}"></line><text class="svg-label" x="10" y="${y+4}">${value}</text>`;}).join('');
+      const xLabels=points.map(p=>`<text class="svg-label" x="${p.x}" y="${height-8}" text-anchor="middle">${p.label}</text>`).join('');
+      const nodes=points.map((p,i)=>`<g class="svg-click chart-node" data-key="${key}" data-index="${i}"><circle cx="${p.x}" cy="${p.y}" r="4" fill="#00dcff" style="filter:drop-shadow(0 0 5px #00dcff);"></circle><circle cx="${p.x}" cy="${p.y}" r="9" fill="rgba(0,220,255,.08)"></circle><text class="svg-value" x="${p.x}" y="${p.y-12}" text-anchor="middle">${Math.round(p.v*10)/10}</text></g>`).join('');
+      return`<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="lg-${key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(0,220,255,.25)"></stop><stop offset="100%" stop-color="rgba(0,220,255,.02)"></stop></linearGradient></defs>${grid}<path d="${area}" fill="url(#lg-${key})"></path><polyline points="${polyline}" fill="none" stroke="#00dcff" stroke-width="2" style="filter:drop-shadow(0 0 4px rgba(0,220,255,.5));"></polyline>${xLabels}${nodes}</svg>`;
+    }
+
+    function buildBarSvg(key,labels,values,fullSize=false){
+      const width=760,height=fullSize?320:260,left=44,right=14,top=16,bottom=52;
+      const plotW=width-left-right;const plotH=height-top-bottom;
+      const max=Math.max(...values,1);
+      const slot=plotW/labels.length;const barW=Math.min(42,slot*.42);
+      const grid=Array.from({length:5},(_,i)=>{const y=top+(plotH/4)*i;const value=Math.round(max-(max/4)*i);return`<line class="svg-axis" x1="${left}" y1="${y}" x2="${width-right}" y2="${y}"></line><text class="svg-label" x="10" y="${y+4}">${value}</text>`;}).join('');
+      const bars=values.map((v,i)=>{const h=(v/max)*plotH;const x=left+slot*i+(slot-barW)/2;const y=top+plotH-h;const capW=Math.max(12,barW*.76);const capX=x+(barW-capW)/2;return`<g class="svg-click chart-node" data-key="${key}" data-index="${i}"><rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="url(#bg-${key})" style="filter:drop-shadow(0 0 8px rgba(0,180,255,.42));"></rect><rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="url(#stripe-${key})" opacity=".20"></rect><rect x="${capX}" y="${Math.max(top+4,y+2)}" width="${capW}" height="4" rx="2" fill="rgba(235,250,255,.92)" style="filter:drop-shadow(0 0 10px rgba(0,220,255,.78));"></rect><text class="svg-value" x="${x+barW/2}" y="${y-7}" text-anchor="middle">${Math.round(v*10)/10}</text><text class="svg-label" x="${x+barW/2}" y="${height-14}" text-anchor="middle" transform="rotate(-20 ${x+barW/2} ${height-14})">${labels[i]}</text></g>`;}).join('');
+      return`<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="bg-${key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00d4ff"></stop><stop offset="100%" stop-color="#0066cc"></stop></linearGradient><pattern id="stripe-${key}" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="transparent"></rect><line x1="0" y1="0" x2="0" y2="8" stroke="rgba(255,255,255,.28)" stroke-width="1.2"></line></pattern></defs>${grid}${bars}</svg>`;
+    }
+
+    function buildHBarSvg(key,labels,values,fullSize=false){
+      const width=760,height=fullSize?320:260,left=88,right=18,top=14,bottom=24;
+      const plotW=width-left-right;const plotH=height-top-bottom;
+      const max=Math.max(...values,1);const slot=plotH/labels.length;const barH=Math.min(32,slot*.58);
+      const grid=Array.from({length:6},(_,i)=>{const x=left+(plotW/5)*i;const value=Math.round((max/5)*i);return`<line class="svg-axis" x1="${x}" y1="${top}" x2="${x}" y2="${top+plotH}"></line><text class="svg-label" x="${x}" y="${height-4}" text-anchor="middle">${value}</text>`;}).join('');
+      const bars=values.map((v,i)=>{const y=top+slot*i+(slot-barH)/2;const w=(v/max)*plotW;const capY=y+(barH-4)/2;return`<g class="svg-click chart-node" data-key="${key}" data-index="${i}"><text class="svg-label" x="${left-10}" y="${y+barH*.7}" text-anchor="end">${labels[i]}</text><rect x="${left}" y="${y}" width="${w}" height="${barH}" rx="4" fill="url(#hg-${key})" style="filter:drop-shadow(0 0 8px rgba(0,220,180,.32));"></rect><rect x="${left}" y="${y}" width="${w}" height="${barH}" rx="4" fill="url(#hstripe-${key})" opacity=".18"></rect><rect x="${Math.max(left+2,left+w-18)}" y="${capY}" width="14" height="4" rx="2" fill="rgba(235,250,255,.94)" style="filter:drop-shadow(0 0 8px rgba(0,255,190,.62));"></rect><text class="svg-value" x="${left+w+8}" y="${y+barH*.7}">${Math.round(v*10)/10}</text></g>`;}).join('');
+      return`<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="hg-${key}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#0099ff"></stop><stop offset="100%" stop-color="#00ffaa"></stop></linearGradient><pattern id="hstripe-${key}" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="transparent"></rect><line x1="0" y1="0" x2="0" y2="8" stroke="rgba(255,255,255,.22)" stroke-width="1.1"></line></pattern></defs>${grid}${bars}</svg>`;
+    }
+
+    function bindChartClicks(key,data,wrap){if(!wrap)wrap=document.getElementById('chart-'+key);if(!wrap)return;wrap.querySelectorAll('.chart-node').forEach(node=>{node.addEventListener('click',()=>{const idx=Number(node.dataset.index);const label=data.labels[idx];const value=data.values[idx];const rows=Array.isArray(data.detailMap[label])&&data.detailMap[label].length?data.detailMap[label]:[{label,value}];openDetail({title:state.modules[key.replace('f','')].title+' / '+label,sub:'数值：'+value,rows});});});}
+
+    function openDetail({title,sub,rows}){document.getElementById('detailTitle').textContent=title||'详情';document.getElementById('detailSub').textContent=sub||'';const content=document.getElementById('detailContent');if(!rows||!rows.length){content.innerHTML='<div class="list-empty" style="height:120px;">当前无详情</div>';}else{const keys=Object.keys(rows[0]);const thead=`<tr>${keys.map(k=>`<th>${escapeHtml(k)}</th>`).join('')}</tr>`;const tbody=rows.map(row=>`<tr>${keys.map(k=>`<td>${formatCell(row[k])}</td>`).join('')}</tr>`).join('');content.innerHTML=`<table class="detail-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;}document.getElementById('detailMask').classList.add('show');}
+    function formatCell(val){if(val===null||val===undefined||val==='')return'--';const text=String(val);if(text==='未出勤')return'<span class="tag red">未出勤</span>';if(text==='请假')return'<span class="tag yellow">请假</span>';if(text==='在岗'||text==='完成'||text==='正常')return`<span class="tag green">${escapeHtml(text)}</span>`;if(/^https?:\/\//i.test(text))return`<a href="${escapeHtml(text)}" target="_blank" rel="noopener" style="color:var(--cyan);">打开链接</a>`;return escapeHtml(text);}
+    function escapeHtml(str){return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');}
+
+    async function openConfig(key){
+      editingKey=key;const isAttendance=key==='attendance';const cfg=isAttendance?state.attendance:state.modules[key];
+      document.getElementById('configTitle').textContent=(isAttendance?'出勤模块':'看板模块')+'配置 — '+cfg.title;
+      document.getElementById('cfgTitle').value=cfg.title||'';
+      document.getElementById('cfgSourceType').value=cfg.sourceType||'mock';
+      document.getElementById('cfgSourceUrl').value=cfg.sourceUrl||'';
+      document.getElementById('cfgRefreshSec').value=cfg.refreshSec||300;
+      document.getElementById('cfgManualJson').value=cfg.manualJson||'';
+      document.getElementById('cfgWip').value=cfg.wip||'';
+      document.getElementById('cfgBoundFileName').value=cfg.boundFileName||'';
+      document.getElementById('cfgDeptKeyword').value=cfg.deptKeyword||'工程处';
+      document.getElementById('cfgDetailKeyword').value=cfg.detailKeyword||'产线维修';
+      document.getElementById('chartTypeField').style.display=isAttendance?'none':'flex';
+      document.getElementById('cfgWipField').style.display='none';
+      document.getElementById('cfgDeptKeywordField').style.display=isAttendance?'flex':'none';
+      document.getElementById('cfgDetailKeywordField2').style.display=isAttendance?'flex':'none';
+      if(!isAttendance)document.getElementById('cfgChartType').value=cfg.chartType||'bar';
+      syncConfigModeUI();await updateBoundFileNameInModal();
+      document.getElementById('configMask').classList.add('show');
+    }
+    function closeConfig(){document.getElementById('configMask').classList.remove('show');editingKey=null;}
+    function saveConfig(){
+      if(!editingKey)return;const isAttendance=editingKey==='attendance';const cfg=isAttendance?state.attendance:state.modules[editingKey];
+      cfg.title=document.getElementById('cfgTitle').value.trim()||cfg.title;cfg.sourceType=document.getElementById('cfgSourceType').value;cfg.sourceUrl=document.getElementById('cfgSourceUrl').value.trim();cfg.refreshSec=Number(document.getElementById('cfgRefreshSec').value||0);cfg.manualJson=document.getElementById('cfgManualJson').value.trim();cfg.boundFileName=document.getElementById('cfgBoundFileName').value.trim();
+      if(isAttendance){cfg.deptKeyword=document.getElementById('cfgDeptKeyword').value.trim()||'工程处';cfg.detailKeyword=document.getElementById('cfgDetailKeyword').value.trim();}else{cfg.chartType=document.getElementById('cfgChartType').value;cfg.wip='';}
+      try{if(cfg.sourceType==='mock'||cfg.sourceType==='manual-json'){if(isAttendance)normalizeAttendanceData(JSON.parse(cfg.manualJson));else normalizeModuleData(JSON.parse(cfg.manualJson));}if(cfg.sourceType==='bound-file'&&!cfg.boundFileName){throw new Error('请先绑定共享盘文件，或切回 URL / JSON 模式');}}catch(e){toast('配置校验失败：'+e.message);return;}
+      saveState();
+      if(isAttendance){document.getElementById('attendancePanelTitle').textContent=cfg.title;renderAttendance();startTimer('attendance',true);refreshAttendance(true);}else{renderModule(editingKey,true);startTimer(editingKey,false);refreshModule(editingKey,true);}
+      scheduleSyncBroadcast('config-save');closeConfig();toast('配置已保存');
+    }
+
+    function exportConfig(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mes_dashboard_config_v3_3.json';a.click();URL.revokeObjectURL(a.href);}
+    function importConfig(file){const reader=new FileReader();reader.onload=()=>{try{const parsed=JSON.parse(reader.result);safeLocalStore.setItem(STORAGE_KEY,JSON.stringify(parsed));location.reload();}catch(e){toast('导入失败：'+e.message);}};reader.readAsText(file,'utf-8');}
+    function resetDemo(){safeLocalStore.setItem(STORAGE_KEY,JSON.stringify(defaultState));location.reload();}
+
+    // ── SHARED DOCS ──
+    const SHARED_DOCS_MODULE_LABELS={attendance:'出勤模块',module1:'维修中心·近7日(数据源A)',module2:'维修中心·近7日(数据源B)',module3:'维修中心·今日个人(数据源A)',module4:'维修中心·今日个人(数据源B)'};
+    function openSharedDocs(){renderSharedDocsTable();document.getElementById('sharedDocsMask').classList.add('show');}
+    function closeSharedDocs(){document.getElementById('sharedDocsMask').classList.remove('show');}
+    function renderSharedDocsTable(){
+      const keys=['attendance','module1','module2','module3','module4'];const tbody=document.getElementById('sharedDocsBody');tbody.innerHTML='';
+      keys.forEach(key=>{const cfg=getCfgByKey(key);const isBound=cfg.sourceType==='bound-file'&&cfg.boundFileName;const fileName=isBound?cfg.boundFileName:'—— 未绑定 ——';const refreshSec=cfg.refreshSec||0;
+      const tr=document.createElement('tr');tr.style.cssText='border-bottom:1px solid rgba(0,150,200,.08);';
+      tr.innerHTML=`<td style="padding:8px 10px;color:var(--text);font-weight:700;font-size:12px;">${SHARED_DOCS_MODULE_LABELS[key]||key}</td><td style="padding:8px 10px;color:${isBound?'var(--green)':'var(--sub)'};font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${fileName}">${fileName}</td><td style="padding:8px 10px;"><input type="number" min="0" step="30" value="${refreshSec}" style="width:70px;background:rgba(0,8,20,.9);border:1px solid rgba(0,120,180,.2);border-radius:3px;color:var(--text);padding:3px 6px;font-size:11px;" data-sdkey="${key}" class="sd-refresh-input" /></td><td style="padding:8px 10px;text-align:center;white-space:nowrap;"><button class="action-btn primary sd-bind-btn" data-sdkey="${key}" style="margin:2px;padding:5px 12px;font-size:11px;">🔗 绑定文件（永久）</button>${isBound?`<button class="action-btn sd-pull-btn" data-sdkey="${key}" style="margin:2px;padding:5px 10px;font-size:11px;">立即刷新</button><button class="action-btn danger sd-clear-btn" data-sdkey="${key}" style="margin:2px;padding:5px 10px;font-size:11px;">解绑</button>`:''}</td>`;
+      tbody.appendChild(tr);});
+      tbody.querySelectorAll('.sd-bind-btn').forEach(btn=>{btn.addEventListener('click',async()=>{await sdPickFile(btn.dataset.sdkey,true);});});
+      // sd-once-btn 已移除（统一走永久绑定）
+      tbody.querySelectorAll('.sd-pull-btn').forEach(btn=>{btn.addEventListener('click',async()=>{await sdPullNow(btn.dataset.sdkey);});});
+      tbody.querySelectorAll('.sd-clear-btn').forEach(btn=>{btn.addEventListener('click',async()=>{const key=btn.dataset.sdkey;await clearBoundHandle(key);if(key!=='attendance'){for(const k of Object.keys(state.modules))await clearBoundHandle(k);await deleteSnapshotFromDb(SHARED_REPAIR_HANDLE_KEY).catch(()=>{});}renderSharedDocsTable();toast('已解绑：'+(SHARED_DOCS_MODULE_LABELS[key]||key));});});
+      tbody.querySelectorAll('.sd-refresh-input').forEach(input=>{input.addEventListener('change',()=>{const key=input.dataset.sdkey;const val=Number(input.value||0);const cfg=getCfgByKey(key);cfg.refreshSec=val;saveState();startTimer(key,key==='attendance');toast((SHARED_DOCS_MODULE_LABELS[key]||key)+' 刷新间隔已更新为 '+val+' 秒');});});
+    }
+    async function sdPickFile(key,persist){const isAtt=key==='attendance';try{const picked=await acquireFileSelection(key,true);if(picked.handle){await rememberFileHandle(key,picked.handle,true);if(picked.file)await rememberFileSnapshot(key,picked.file,{applyAllModules:false,broadcast:true});const cfg=getCfgByKey(key);cfg.sourceType='bound-file';saveState();if(isAtt){await refreshAttendance(true);}else{await refreshModule(key,true);}renderSharedDocsTable();scheduleSyncBroadcast('shared-bind');toast('✅ 永久绑定成功：'+picked.handle.name+'（下次打开自动恢复，直到主动解绑）');return;}if(picked.file){await handleFallbackFile(picked.file,true,key,{applyAllModules:false});return;}const inp=document.getElementById('dataBindFile');inp.dataset.targetKey=key;inp.dataset.sdkey=key;inp.dataset.persist='1';inp.dataset.syncModules='0';inp.click();}catch(e){if(String(e).includes('AbortError'))return;toast('绑定失败：'+e.message);}}
+    async function sdPullNow(key){const isAtt=key==='attendance';try{if(isAtt)await refreshAttendance();else await refreshModule(key);renderSharedDocsTable();}catch(e){toast('刷新失败：'+e.message);}}
+    async function sdQuickBindAll(){try{const picked=await acquireFileSelection('module1',true);if(picked.handle){for(const k of Object.keys(state.modules)){await rememberFileHandle(k,picked.handle,true);state.modules[k].sourceType='bound-file';}sessionFileHandles[SHARED_REPAIR_HANDLE_KEY]=picked.handle;try{await saveHandleToDb(SHARED_REPAIR_HANDLE_KEY,picked.handle);}catch(e){}if(picked.file)await rememberFileSnapshot('module1',picked.file,{applyAllModules:true,broadcast:true});saveState();for(const k of Object.keys(state.modules))await refreshModule(k,true);renderSharedDocsTable();scheduleSyncBroadcast('quick-bind');toast('✅ 已永久绑定全部4个图表模块：'+picked.handle.name);return;}if(picked.file){await handleFallbackFile(picked.file,true,'module1',{applyAllModules:true});return;}const inp=document.getElementById('dataBindFile');inp.dataset.targetKey='module1';inp.dataset.sdkey='module1';inp.dataset.persist='1';inp.dataset.syncModules='1';inp.click();}catch(e){if(String(e).includes('AbortError'))return;toast('绑定失败：'+e.message);}}
+
+    // ── ORG CHART FUNCTIONS ──
+    function toggleOrgBody(){
+      const body=document.getElementById("orgBody");
+      const icon=document.getElementById("orgToggleIcon");
+      if(!body) return;
+      body.classList.toggle("open");
+      icon.classList.toggle("open");
+    }
+
+    // 姓名别名映射（兼容出勤数据中可能的简称/全称）
+    const ORG_ALIAS={"User1":"张三","User2":"李四","User3":"王五","User4":"赵六"};
+
+    function syncOrgNodes(data){
+      // 汇总所有人的状态
+      const statusMap={};
+      const allPeople=[...(data.present||[]),...(data.absent||[]),...(data.late||[]),...(data.leave||[])];
+      allPeople.forEach(p=>{
+        const name=(p.name||"").trim();
+        if(name) statusMap[name]=p.status||"在岗";
+        // 别名匹配
+        Object.entries(ORG_ALIAS).forEach(([alias,real])=>{
+          if(name===alias||name===real) statusMap[real]=p.status||"在岗";
+        });
+      });
+
+      // 更新节点颜色
+      document.querySelectorAll(".org-node[data-orgname],[data-orgname]").forEach(el=>{
+        const name=el.getAttribute("data-orgname");
+        const status=statusMap[name]||null;
+        const isNode=el.classList.contains("org-node");
+        const badge=isNode?el.querySelector(".on-status"):el;
+        const node=isNode?el:el.closest(".org-chain-node");
+        if(!status){// 无数据 → 保持默认
+          if(badge){badge.className="on-status cn-on";badge.textContent="在岗";}
+          if(node) node.style.cssText="";
+          if(isNode) el.classList.remove("org-absent");
+          return;
+        }
+        if(status==="未出勤"||status==="未到"){
+          if(badge){badge.className="on-status cn-off";badge.textContent="未到";}
+          if(isNode) el.classList.add("org-absent");
+        } else if(status==="迟到"){
+          if(badge){badge.className="on-status cn-late";badge.textContent="迟到";}
+          if(isNode) el.classList.remove("org-absent");
+        } else {
+          if(badge){badge.className="on-status cn-on";badge.textContent="在岗";}
+          if(isNode) el.classList.remove("org-absent");
+        }
+      });
+
+      // 更新顶部 badge + stats
+      const absentCount=(data.tabCounts?.absent||data.absent?.length||0);
+      const badge=document.getElementById("orgAbsentBadge");
+      const stats=document.getElementById("orgStats");
+      if(badge) badge.style.display=absentCount>0?"inline":"none";
+      const total=(data.summary?.attendancePlan)||21;
+      const onsite=(data.summary?.attendanceActual)||0;
+      if(stats) stats.textContent=total+"人 在岗"+onsite;
+    }
+
+    // ── INIT ──
+    function init(){
+      initFxCanvas();
+      initDashboardSync();
+      initSharedBindingBridge();
+      initModuleTabs();
+      document.getElementById('attendancePanelTitle').textContent=state.attendance.title;
+      document.querySelectorAll('[data-action="refresh"]').forEach(btn=>{btn.addEventListener('click',()=>{const key=btn.dataset.key;if(key==='attendance')refreshAttendance();else refreshModule(key);});});
+      document.querySelectorAll('[data-action="config"]').forEach(btn=>{btn.addEventListener('click',()=>openConfig(btn.dataset.key));});
+      document.querySelectorAll('#attendanceTabs .tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{state.activeAttendanceTab=btn.dataset.tab;saveState();renderAttendance();const data=normalizeAttendanceData(state.attendance.currentData||JSON.parse(state.attendance.manualJson));openAttendanceTabDetail(data,btn.dataset.tab);});});
+      document.getElementById('btnRefreshAll').addEventListener('click',()=>{refreshAttendance(true);Object.keys(state.modules).forEach(k=>refreshModule(k,true));toast('全部模块已发起刷新');});
+      document.getElementById('btnRefreshModules').addEventListener('click',()=>{Object.keys(state.modules).forEach(k=>refreshModule(k,true));});
+      document.getElementById('btnRefreshTrend').addEventListener('click',()=>{refreshModule('module1',true);refreshModule('module2',true);});
+      document.getElementById('btnRefreshPersonal').addEventListener('click',()=>{refreshModule('module3',true);refreshModule('module4',true);});
+      document.getElementById('btnExport').addEventListener('click',exportConfig);
+      document.getElementById('btnImport').addEventListener('click',()=>document.getElementById('configImportFile').click());
+      document.getElementById('btnReset').addEventListener('click',resetDemo);
+      document.getElementById('cfgSourceType').addEventListener('change',syncConfigModeUI);
+      document.getElementById('btnPickFileOnce').addEventListener('click',()=>handlePickFile(false));
+      document.getElementById('btnBindSharedFile').addEventListener('click',()=>handlePickFile(true));
+      document.getElementById('btnPullBoundNow').addEventListener('click',pullBoundNow);
+      document.getElementById('btnClearBoundFile').addEventListener('click',clearBoundNow);
+      document.getElementById('dataBindFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];const targetKey=e.target.dataset.targetKey||e.target.dataset.sdkey||editingKey;const persist=e.target.dataset.persist==='1';const applyAll=e.target.dataset.syncModules==='1';if(file&&targetKey){await handleFallbackFile(file,persist,targetKey,{applyAllModules:applyAll,fromInput:true});}e.target.dataset.targetKey='';e.target.dataset.sdkey='';e.target.dataset.persist='';e.target.dataset.syncModules='';e.target.value='';});
+      document.getElementById('configImportFile').addEventListener('change',e=>{if(e.target.files[0])importConfig(e.target.files[0]);e.target.value='';});
+      document.getElementById('btnConfigCancel').addEventListener('click',closeConfig);
+      document.getElementById('btnConfigSave').addEventListener('click',saveConfig);
+      document.getElementById('btnStopTimer').addEventListener('click',()=>{if(!editingKey)return;if(editingKey==='attendance'){state.attendance.refreshSec=0;stopTimer('attendance');}else{state.modules[editingKey].refreshSec=0;stopTimer(editingKey);}saveState();document.getElementById('cfgRefreshSec').value=0;toast('自动刷新已停止');});
+      document.getElementById('configMask').addEventListener('click',e=>{if(e.target.id==='configMask')closeConfig();});
+      document.getElementById('btnDetailClose').addEventListener('click',()=>{document.getElementById('detailMask').classList.remove('show');});
+      document.getElementById('detailMask').addEventListener('click',e=>{if(e.target.id==='detailMask')document.getElementById('detailMask').classList.remove('show');});
+      document.getElementById('btnSharedDocs').addEventListener('click',openSharedDocs);
+      document.getElementById('btnSharedDocsClose').addEventListener('click',closeSharedDocs);
+      document.getElementById('sharedDocsMask').addEventListener('click',e=>{if(e.target.id==='sharedDocsMask')closeSharedDocs();});
+      document.getElementById('btnQuickBindAll').addEventListener('click',sdQuickBindAll);
+      const origDataBindFile=document.getElementById('dataBindFile');
+      origDataBindFile.addEventListener('change',()=>{},true);
+
+      try{state.attendance.currentData=state.attendance.currentData||normalizeAttendanceData(JSON.parse(state.attendance.manualJson));}catch(_){}
+      renderAttendance();
+      Object.keys(state.modules).forEach(k=>{try{state.modules[k].currentData=state.modules[k].currentData||normalizeModuleData(JSON.parse(state.modules[k].manualJson));}catch(_){}});
+      renderCombinedTrend();
+      renderCombinedPersonal();
+      applyAllTimers();
+      setTimeout(()=>{if(!['mock','manual-json'].includes(state.attendance.sourceType))refreshAttendance(true);Object.keys(state.modules).forEach(k=>{if(!['mock','manual-json'].includes(state.modules[k].sourceType))refreshModule(k,true);});},60);
+      saveState();
+      scheduleSyncBroadcast('init');
+    }
+
+      document.getElementById('btnAIAnalyze').addEventListener('click', runGemmaAnalysis);
+      document.getElementById('btnAIClose').addEventListener('click', () => document.getElementById('aiMask').classList.remove('show'));
+      document.getElementById('btnAIRefresh').addEventListener('click', runGemmaAnalysis);
+
+    init();
+  </script>
+</body>
+</html>
