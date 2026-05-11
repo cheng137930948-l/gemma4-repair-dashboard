@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>维修中心看板 - Gemma 4 参赛演示版</title>
+    <style>
+        :root {
+            --bg: #030712;
+            --surface: #0f172a;
+            --primary: #3b82f6;
+            --accent: #10b981;
+            --text: #f8fafc;
+            --text-sub: #94a3b8;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(51, 65, 85, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+        }
+
+        header {
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.05em;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-sub);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: #fff;
+        }
+
+        .card-desc {
+            color: var(--text-sub);
+            font-size: 1rem;
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        .card-footer {
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .card-footer span {
+            margin-right: 0.5rem;
+        }
+
+        footer {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-sub);
+            font-size: 0.875rem;
+            border-top: 1px solid var(--card-border);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        .card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">Gemma 4 维修数据智能看板</div>
+        <p class="subtitle">面向工业维修场景的数字化智能管理系统 - 参赛演示版 (Demo Mode)。<br>由 Google Gemma 4 大模型驱动，实现维修数据的实时洞察与预测分析。</p>
+        <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem; font-size: 0.9rem;">
+            <span style="background: rgba(16, 185, 129, 0.1); color: var(--accent); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.2);">Model: Gemma 4</span>
+            <span style="background: rgba(59, 130, 246, 0.1); color: var(--primary); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(59, 130, 246, 0.2);">Mode: Offline Demo</span>
+            <span style="background: rgba(248, 250, 252, 0.05); color: var(--text-sub); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(248, 250, 252, 0.1);">Data: Sanitized Demo</span>
+        </div>
+    </header>
+
+    <main>
+        <div class="cards-container">
+            <a href="产线维修综合看板_v3.html" class="card">
+                <div class="card-icon">📊</div>
+                <h2 class="card-title">产线维修综合看板</h2>
+                <p class="card-desc">集成出勤状况、维修趋势分析及个人产出统计。提供全方位的维修课运行指标实时监控。</p>
+                <div class="card-footer">
+                    <span>立即进入</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </div>
+            </a>
+
+            <a href="产线维修课领退料看板.html" class="card">
+                <div class="card-icon">📦</div>
+                <h2 class="card-title">领退料分析看板</h2>
+                <p class="card-desc">维修物料流转实时监控。涵盖领料、退料数据对比，预警超时未退料项，确保备件闭环管理。</p>
+                <div class="card-footer">
+                    <span>立即进入</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </div>
+            </a>
+        </div>
+    </main>
+
+    <footer>
+        <p>© 2026 Gemma 4 Competition Entry. All rights reserved.</p>
+        <p style="margin-top: 0.5rem; opacity: 0.6;">* 此版本已进行脱敏处理，所有数据均为模拟。不可用于生产环境。</p>
+    </footer>
+</body>
+</html>

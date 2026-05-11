@@ -1,0 +1,22 @@
+# Logs
+logs/
+*.log
+
+# Sensitive info
+.env
+*.bak
+*.tmp
+config_local.json
+
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*crash*
+*takeover*
+*workflow*
+*backup*

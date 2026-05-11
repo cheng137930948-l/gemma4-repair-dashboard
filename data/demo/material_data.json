@@ -1,0 +1,47 @@
+{
+  "reportType": "material",
+  "dashboardPacket": {
+    "ts": "2026-05-11T10:00:00+08:00",
+    "sources": [
+      {
+        "source": "mro_line_issue_return",
+        "label": "产线维修领退料分析看板",
+        "rowCount": 5,
+        "kpi": {
+          "领料": 3,
+          "退料": 2
+        }
+      }
+    ]
+  },
+  "extData": {
+    "mro_line_issue_return": {
+      "data": [
+        {
+          "单号": "DEMO-1001",
+          "receive_return_type": "领料",
+          "job_name": "DEMO-WO-001",
+          "location_name": "DIP",
+          "part": "DEMO-PN-001",
+          "part_name": "FUSE; 2A; 250V; DIP",
+          "create_user_name": "Demo User 1",
+          "create_date": "2026-05-11",
+          "status": "提交",
+          "dept": "产线维修课"
+        },
+        {
+          "单号": "DEMO-1002",
+          "receive_return_type": "退料",
+          "job_name": "DEMO-WO-002",
+          "location_name": "SMT",
+          "part": "DEMO-PN-002",
+          "part_name": "RESISTOR; 10K; 0402",
+          "create_user_name": "Demo User 2",
+          "create_date": "2026-05-11",
+          "status": "完成",
+          "dept": "产线维修课"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "attendance": {
+    "summary": {
+      "dayShiftActual": 12,
+      "nightShiftActual": 8,
+      "attendanceActual": 20,
+      "attendancePlan": 22
+    },
+    "present": [
+      {"name": "Demo User 1", "shift": "白班", "status": "在岗", "group": "维修一组"},
+      {"name": "Demo User 2", "shift": "白班", "status": "在岗", "group": "维修一组"},
+      {"name": "Demo User 3", "shift": "夜班", "status": "在岗", "group": "维修二组"}
+    ],
+    "absent": [
+      {"name": "Demo User 4", "shift": "白班", "status": "未出勤", "reason": "请假", "group": "维修一组"}
+    ],
+    "late": [],
+    "leave": [],
+    "meta": "DEMO 数据"
+  },
+  "modules": {
+    "module1": {
+      "labels": ["05-01", "05-02", "05-03", "05-04", "05-05", "05-06", "05-07"],
+      "values": [45, 52, 48, 60, 55, 65, 70],
+      "detailMap": {},
+      "meta": "产线维修趋势 (DEMO)",
+      "wip": "12"
+    },
+    "module3": {
+      "labels": ["张三", "李四", "王五", "赵六"],
+      "values": [15, 12, 10, 8],
+      "detailMap": {},
+      "meta": "个人产出 (DEMO)"
+    }
+  }
+}
