@@ -3,12 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>产线维修综合看板 - Gemma 4 智能驱动版</title>
+  <title>维修综合看板 - Gemma 4 Hackathon Demo</title>
   <script src="gemma_config.js"></script>
   <script src="gemma_adapter.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
-
     :root{
       --bg:#020810;
       --bg2:#040d18;
@@ -971,20 +969,9 @@
       <div class="corner corner-bl"></div>
       <div class="corner corner-br"></div>
       <div class="topbar-left">
-        <div class="topbar-logo">
-          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <polygon points="16,2 28,8 28,24 16,30 4,24 4,8" fill="none" stroke="rgba(0,220,255,.5)" stroke-width="1.2"/>
-            <polygon points="16,6 24,10 24,22 16,26 8,22 8,10" fill="none" stroke="rgba(0,220,255,.3)" stroke-width=".8"/>
-            <circle cx="16" cy="16" r="3" fill="rgba(0,220,255,.8)"/>
-            <line x1="16" y1="6" x2="16" y2="10" stroke="rgba(0,220,255,.6)" stroke-width="1.2"/>
-            <line x1="16" y1="22" x2="16" y2="26" stroke="rgba(0,220,255,.6)" stroke-width="1.2"/>
-            <line x1="8" y1="10" x2="11" y2="12" stroke="rgba(0,220,255,.4)" stroke-width="1"/>
-            <line x1="21" y1="12" x2="24" y2="10" stroke="rgba(0,220,255,.4)" stroke-width="1"/>
-          </svg>
-        </div>
         <div>
-          <div class="topbar-title">Gemma 4 维修数据智能看板</div>
-          <div class="topbar-subtitle">SMART MAINTENANCE · DATA ENGINE</div>
+          <div class="topbar-title">Gemma 4 Hackathon Demo</div>
+          <div class="topbar-subtitle">维修数据智能看板 · 参赛作品演示版</div>
         </div>
       </div>
 
@@ -998,6 +985,7 @@
 
       <div class="topbar-actions">
         <button class="btn btn-green" id="btnAIAnalyze" style="border-color:var(--green);box-shadow:0 0 10px rgba(0,255,136,.2);">✨ Gemma 4 智能分析</button>
+        <button class="btn btn-outline" id="btnOpenCfg" style="border-color:rgba(0,220,255,.4); color:var(--cyan);">⚙️ 系统设置</button>
         <button class="btn" id="btnRefreshAll">全部刷新</button>
         <button class="btn" id="btnExport">导出</button>
         <button class="btn" id="btnImport">导入</button>
@@ -1303,20 +1291,142 @@
         <div class="loading-spinner" style="border:3px solid rgba(0,220,255,.1);border-top:3px solid var(--cyan);border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto 10px;"></div>
         <p style="color:var(--sub);">Gemma 4 正在深入分析数据...</p>
       </div>
-      <div id="aiResult" class="ai-content-area" style="padding:10px;line-height:1.6;color:var(--text);font-size:13px;max-height:60vh;overflow-y:auto;white-space:pre-wrap;">
+      <div id="aiResult" class="ai-content-area" style="padding:15px; max-height:65vh; overflow-y:auto; scrollbar-width: thin;">
       </div>
-      <div class="modal-actions">
+      <div class="modal-actions" style="border-top: 1px solid rgba(255,255,255,.05); padding-top: 15px;">
         <button class="btn" id="btnAIClose">关闭</button>
-        <button class="btn btn-green" id="btnAIRefresh">重新生成分析</button>
+        <button class="btn btn-outline" id="btnAICopy">复制报告</button>
+        <button class="btn btn-green" id="btnAIRefresh" style="box-shadow: 0 0 15px rgba(0,212,170,.2);">重新生成分析</button>
+      </div>
+    </div>
+  </div>
+  <!-- ══ SYSTEM SETTINGS MODAL ══ -->
+  <div class="modal-mask" id="cfgOverlay">
+    <div class="cfg-modal">
+      <div class="cfg-hd">
+        <h3 style="color:var(--cyan);margin:0;font-size:16px;">⚙️ 系统设置 & 推送配置</h3>
+        <span style="cursor:pointer;opacity:.6;" id="btnCloseCfgX">✕</span>
+      </div>
+      <div class="cfg-body">
+        <div class="cfg-section">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
+            <div>
+              <label class="cfg-label">Teams Webhook URL</label>
+              <input class="cfg-input" id="cfgWebhookInput" placeholder="https://xxx.webhook.office.com/...">
+            </div>
+            <div>
+              <label class="cfg-label">企业微信 Webhook URL</label>
+              <input class="cfg-input" id="cfgWechatInput" placeholder="https://qyapi.weixin.qq.com/...">
+            </div>
+          </div>
+          <label class="cfg-label">Forms 闭环反馈链接</label>
+          <input class="cfg-input" id="cfgFormsInput" placeholder="https://forms.office.com/...">
+        </div>
+
+        <div class="cfg-section" style="border-top:1px solid rgba(255,255,255,.05);padding-top:15px;margin-bottom:15px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="cfgDemoMode" style="width:16px;height:16px;cursor:pointer;">
+            <label for="cfgDemoMode" style="font-size:13px;color:var(--cyan);cursor:pointer;font-weight:600;">Demo 模式：不真实发送，仅生成推送预览</label>
+          </div>
+          <label class="cfg-label" style="margin-top:14px;">报警阈值（小时）</label>
+          <input class="cfg-input" id="cfgAlertThresholdHours" type="number" min="1" step="1" value="3">
+          <label class="cfg-label" style="margin-top:14px;">自动刷新间隔（分钟）</label>
+          <select class="cfg-input" id="cfgAutoRefreshInterval">
+            <option value="0">关闭</option>
+            <option value="5">5 分钟</option>
+            <option value="10">10 分钟</option>
+            <option value="30">30 分钟</option>
+            <option value="60">1 小时</option>
+            <option value="120">2 小时</option>
+          </select>
+        </div>
+
+        <div class="cfg-section" style="border-top:1px solid rgba(255,255,255,.05);padding-top:15px;">
+          <label class="cfg-label" style="display:flex;justify-content:space-between;align-items:center;">
+            人员映射表 (用于 @提及)
+            <button class="mini-btn" id="btnCfgAdd">+ 添加</button>
+          </label>
+          <div id="cfgRows" style="margin-top:10px;"></div>
+          <div id="cfgNewRow" style="display:grid;grid-template-columns:1fr 2fr auto;gap:10px;margin-top:10px;">
+             <input class="cfg-input" id="cfgNewName" placeholder="姓名">
+             <input class="cfg-input" id="cfgNewEmail" placeholder="Teams 邮箱">
+             <div style="width:24px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="cfg-ft">
+        <button class="btn" id="btnCloseCfg">关闭</button>
+        <button class="btn btn-green" id="btnCfgSave">💾 保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PUSH PREVIEW MODAL ══ -->
+  <div class="modal-mask" id="previewOverlay" style="z-index: 10001;">
+    <div class="cfg-modal" style="width: min(860px, 95vw);">
+      <div class="cfg-hd">
+        <h3 style="color:var(--cyan);margin:0;font-size:15px;">📣 推送内容预览 <span style="font-size:10px;background:rgba(0,220,255,.2);padding:2px 7px;border-radius:999px;">DEMO MODE</span></h3>
+        <span style="cursor:pointer;opacity:.6;" id="btnClosePreviewX">✕</span>
+      </div>
+      <div class="cfg-body" style="padding: 20px;">
+        <div id="previewContent" style="background:linear-gradient(180deg,rgba(0,18,36,.82),rgba(0,8,20,.88)); border:1px solid rgba(0,220,255,.24); border-radius:14px; padding:18px; font-size:12px; line-height:1.6; white-space:normal; max-height:62vh; overflow-y:auto; color:var(--text); scrollbar-width: thin;"></div>
+        <div style="margin-top:15px; font-size:11px; color:var(--sub); text-align:center;">Demo 模式下，系统已生成正式消息但未发送至 Webhook。</div>
+      </div>
+      <div class="cfg-ft">
+        <button class="btn btn-outline" id="btnClosePreview" style="padding: 8px 24px;">我知道了</button>
       </div>
     </div>
   </div>
 
   <style>
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .ai-content-area h3 { color: var(--cyan); margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-    .ai-content-area strong { color: var(--green); }
     #aiMask.show { display: flex; opacity: 1; }
+
+    /* Gemma Report Styles */
+    .gemma-report { font-family: 'Noto Sans SC', sans-serif; color: var(--text); }
+    .report-header { margin-bottom: 20px; border-bottom: 1px solid rgba(0,220,255,.1); padding-bottom: 15px; }
+    .report-title-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .report-title-row h2 { margin: 0; font-size: 18px; color: var(--cyan); }
+    .report-icon { font-size: 20px; }
+    .demo-tag { font-size: 9px; background: rgba(0,220,255,.15); color: var(--cyan); padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+    .report-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--sub); }
+
+    .risk-badge { padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 10px; }
+    .risk-low { background: rgba(0,255,170,.1); color: #00ffaa; border: 1px solid rgba(0,255,170,.2); }
+    .risk-mid { background: rgba(255,204,0,.1); color: #ffcc00; border: 1px solid rgba(255,204,0,.2); }
+    .risk-high { background: rgba(255,51,102,.1); color: #ff3366; border: 1px solid rgba(255,51,102,.2); }
+
+    .report-kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .kpi-card { background: rgba(255,255,255,.03); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.05); }
+    .kpi-label { font-size: 10px; color: var(--sub); margin-bottom: 4px; }
+    .kpi-value { font-size: 15px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+    .report-section { margin-bottom: 18px; }
+    .report-section h3 { font-size: 14px; color: var(--cyan); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .section-content { font-size: 12.5px; line-height: 1.6; color: rgba(235,245,255,.85); }
+
+    .report-footer { margin-top: 25px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,.1); font-size: 10.5px; color: var(--sub); text-align: center; }
+
+    /* Toast Styles */
+    .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(0,8,20,.9); color: #fff; padding: 12px 24px; border-radius: 8px; border: 1px solid var(--cyan-glow); font-size: 14px; z-index: 10000; opacity: 0; transition: all .4s cubic-bezier(.18,.89,.32,1.28); pointer-events: none; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.ok { border-color: var(--green); }
+    .toast.err { border-color: var(--red); }
+    .toast.info { border-color: var(--cyan); }
+
+    /* System Settings Styles */
+    #cfgOverlay.show { display: flex; opacity: 1; }
+    .cfg-modal { background: var(--surface); border: 1px solid var(--cyan-glow); box-shadow: 0 0 30px rgba(0,220,255,.2); width: min(520px, 95vw); padding: 0; border-radius: 12px; overflow: hidden; }
+    .cfg-hd { padding: 16px 20px; background: rgba(0,220,255,.05); border-bottom: 1px solid rgba(0,220,255,.1); display: flex; justify-content: space-between; align-items: center; }
+    .cfg-body { padding: 20px; max-height: 70vh; overflow-y: auto; }
+    .cfg-section { margin-bottom: 20px; }
+    .cfg-label { font-size: 12px; color: var(--sub); margin-bottom: 8px; display: block; }
+    .cfg-input { width: 100%; background: rgba(0,8,20,.6); border: 1px solid rgba(0,220,255,.2); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 13px; outline: none; transition: all .2s; }
+    .cfg-input:focus { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,220,255,.3); }
+    .cfg-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: 10px; margin-bottom: 10px; align-items: center; }
+    .cfg-del { color: var(--red); cursor: pointer; padding: 4px; opacity: .6; transition: opacity .2s; }
+    .cfg-del:hover { opacity: 1; }
+    .cfg-ft { padding: 15px 20px; background: rgba(0,0,0,.2); border-top: 1px solid rgba(255,255,255,.05); display: flex; justify-content: flex-end; gap: 12px; }
   </style>
 
   <script>
@@ -1329,14 +1439,203 @@
       result.innerHTML = '';
       try {
         const report = await window.GemmaAdapter.analyze('integrated', window.state);
-        const htmlReport = report.replace(/### (.*)/g, '<h3>$1</h3>').replace(/\*\* (.*)\*\*/g, '<strong>$1</strong>');
-        result.innerHTML = htmlReport;
+        result.innerHTML = window.GemmaAdapter.renderReport(report);
       } catch (e) {
-        result.innerHTML = `<p style="color:var(--red);">分析失败: ${e.message}</p>`;
+        result.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);">
+          <div style="font-size:30px;margin-bottom:10px;">⚠️</div>
+          <p>分析失败: ${e.message}</p>
+        </div>`;
       } finally {
         loading.style.display = 'none';
       }
     }
+
+    function copyAIReport() {
+      const result = document.getElementById('aiResult');
+      const text = result.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        toast('报告已复制到剪贴板');
+      }).catch(err => {
+        toast('复制失败: ' + err);
+      });
+    }
+
+    document.getElementById('btnAIClose').onclick = () => document.getElementById('aiMask').classList.remove('show');
+    document.getElementById('btnAIRefresh').onclick = runGemmaAnalysis;
+    document.getElementById('btnAICopy').onclick = copyAIReport;
+
+    // ── SYSTEM SETTINGS LOGIC ──
+    const CFG_KEY='mro_user_map';
+    function safeGetLocalStorage(key, fallback=''){
+      try{
+        const value = window.localStorage.getItem(key);
+        return value === null ? fallback : value;
+      }catch(_){
+        return fallback;
+      }
+    }
+    function safeSetLocalStorage(key, value){
+      try{
+        window.localStorage.setItem(key, String(value));
+        return true;
+      }catch(_){
+        return false;
+      }
+    }
+    function safeGet(key, fallback=''){return safeGetLocalStorage(key, fallback);}
+    function safeSet(key, value){return safeSetLocalStorage(key, value);}
+    function safeGetJsonLocalStorage(key, fallback){
+      const raw = safeGetLocalStorage(key, null);
+      if(raw === null) return fallback;
+      try{return JSON.parse(raw);}catch(_){return fallback;}
+    }
+    function normalizeUserMap(arr){
+      return (Array.isArray(arr)?arr:[]).map(u=>({
+        name:String(u?.name||'').trim(),
+        email:String(u?.email||'').trim()
+      })).filter(u=>u.name||u.email);
+    }
+    function loadUserMap(){ return normalizeUserMap(safeGetJsonLocalStorage(CFG_KEY,[])); }
+    function saveUserMap(arr){ return safeSetLocalStorage(CFG_KEY,JSON.stringify(normalizeUserMap(arr))); }
+
+    function openCfg(){
+      console.log('[settings] open panel');
+      _cfgBuf=loadUserMap();
+      renderCfgRows();
+      const teamsInput=document.getElementById('cfgWebhookInput');
+      const wechatInput=document.getElementById('cfgWechatInput');
+      const formsInput=document.getElementById('cfgFormsInput');
+      const demoInput=document.getElementById('cfgDemoMode');
+      const thresholdInput=document.getElementById('cfgAlertThresholdHours');
+      const refreshInput=document.getElementById('cfgAutoRefreshInterval');
+      const overlay=document.getElementById('cfgOverlay');
+      if(teamsInput) teamsInput.value = safeGetLocalStorage('mro_teams_webhook','');
+      if(wechatInput) wechatInput.value = safeGetLocalStorage('mro_wechat_webhook','');
+      if(formsInput) formsInput.value = safeGetLocalStorage('mro_forms_link','');
+      if(demoInput) demoInput.checked = safeGetLocalStorage('mro_push_demo_mode','1') !== '0';
+      if(thresholdInput) thresholdInput.value = safeGetLocalStorage('mro_alert_threshold_hours','3');
+      if(refreshInput) refreshInput.value = safeGetLocalStorage('mro_auto_refresh_interval','0');
+      if(overlay){
+        overlay.style.display = 'flex';
+        overlay.classList.add('show');
+      }else{
+        console.error('[settings] cfgOverlay missing');
+        try{alert('系统设置打开失败：未找到设置面板 cfgOverlay');}catch(_){}
+      }
+    }
+    function closeCfg(){ const overlay=document.getElementById('cfgOverlay'); if(overlay){ overlay.classList.remove('show'); overlay.style.display=''; } }
+
+    function escapePushPreviewHtml(str){return String(str??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');}
+    function buildGenericPushPreviewHtml(content, platform){
+      const isDemo=safeGetLocalStorage('mro_push_demo_mode','1') !== '0';
+      const threshold=safeGetLocalStorage('mro_alert_threshold_hours','3');
+      const now=new Date().toLocaleString('zh-CN',{hour12:false});
+      return `
+        <div style="font-family:'Microsoft YaHei',sans-serif;color:#dff8ff;">
+          <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px;">
+            <div>
+              <div style="font-size:20px;font-weight:800;color:#fff;">维修异常预警推送预览</div>
+              <div style="margin-top:5px;font-size:12px;color:var(--sub);">生成时间：${escapePushPreviewHtml(now)} · 目标通道：${escapePushPreviewHtml(platform||'Teams / 企业微信')}</div>
+            </div>
+            <div style="font-size:11px;color:${isDemo?'var(--green)':'var(--yellow)'};border:1px solid rgba(0,220,255,.26);border-radius:999px;padding:5px 10px;background:rgba(0,220,255,.08);">${isDemo?'Demo 模式 · 仅预览':'真实推送模式'}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px;">
+            <div style="border:1px solid rgba(0,220,255,.22);border-radius:12px;background:rgba(0,220,255,.07);padding:12px;"><div style="font-size:11px;color:var(--sub);">责任人数</div><div style="font-size:24px;font-weight:800;color:var(--cyan);">演示</div></div>
+            <div style="border:1px solid rgba(255,77,109,.24);border-radius:12px;background:rgba(255,77,109,.08);padding:12px;"><div style="font-size:11px;color:var(--sub);">异常总数</div><div style="font-size:24px;font-weight:800;color:var(--red);">预览</div></div>
+            <div style="border:1px solid rgba(0,255,149,.22);border-radius:12px;background:rgba(0,255,149,.07);padding:12px;"><div style="font-size:11px;color:var(--sub);">报警阈值</div><div style="font-size:24px;font-weight:800;color:var(--green);">${escapePushPreviewHtml(threshold)}h</div></div>
+          </div>
+          <section style="border:1px solid rgba(0,220,255,.22);border-radius:14px;background:rgba(0,8,20,.55);padding:14px;">
+            <div style="font-weight:700;margin-bottom:8px;">结构化消息预览</div>
+            <div style="white-space:pre-wrap;color:var(--text);line-height:1.7;">${escapePushPreviewHtml(content||'当前看板已生成 Demo 推送预览。')}</div>
+          </section>
+        </div>`;
+    }
+    function showPushPreview(content, platform){
+      const overlay = document.getElementById('previewOverlay');
+      const body = document.getElementById('previewContent');
+      if(!overlay || !body) return;
+      body.innerHTML = buildGenericPushPreviewHtml(content, platform);
+      overlay.classList.add('show');
+      toast('Demo Mode：已生成推送内容，未真实发送', 'info');
+    }
+    function closePushPreview(){
+      const overlay=document.getElementById('previewOverlay');
+      if(overlay) overlay.classList.remove('show');
+    }
+
+    function renderCfgRows(){
+      const map=Array.isArray(_cfgBuf)?_cfgBuf:loadUserMap();
+      const container=document.getElementById('cfgRows');
+      if(!container) return;
+      container.innerHTML=map.map((u,i)=>`
+        <div class="cfg-row">
+          <input class="cfg-input cfg-name" data-idx="${i}" value="${u.name}" placeholder="姓名">
+          <input class="cfg-input cfg-email" data-idx="${i}" value="${u.email}" placeholder="邮箱">
+          <span class="cfg-del" data-idx="${i}">✕</span>
+        </div>`).join('');
+      container.querySelectorAll('.cfg-name').forEach(el=>el.oninput=()=>cfgUpdate(+el.dataset.idx,'name',el.value));
+      container.querySelectorAll('.cfg-email').forEach(el=>el.oninput=()=>cfgUpdate(+el.dataset.idx,'email',el.value));
+      container.querySelectorAll('.cfg-del').forEach(el=>el.onclick=()=>cfgDel(+el.dataset.idx));
+    }
+
+    let _cfgBuf=[];
+    function cfgUpdate(i,field,val){ if(!Array.isArray(_cfgBuf))_cfgBuf=loadUserMap(); if(!_cfgBuf[i])return; _cfgBuf[i][field]=val; }
+    function cfgDel(i){ if(!Array.isArray(_cfgBuf))_cfgBuf=loadUserMap();_cfgBuf.splice(i,1);saveUserMap(_cfgBuf);renderCfgRows(); }
+
+    function cfgSave(){
+      if(!Array.isArray(_cfgBuf)) _cfgBuf=loadUserMap();
+      saveUserMap(_cfgBuf);
+      const teamsInput=document.getElementById('cfgWebhookInput');
+      const wechatInput=document.getElementById('cfgWechatInput');
+      const formsInput=document.getElementById('cfgFormsInput');
+      const demoInput=document.getElementById('cfgDemoMode');
+      const thresholdInput=document.getElementById('cfgAlertThresholdHours');
+      const refreshInput=document.getElementById('cfgAutoRefreshInterval');
+      if(teamsInput) safeSetLocalStorage('mro_teams_webhook', teamsInput.value);
+      if(wechatInput) safeSetLocalStorage('mro_wechat_webhook', wechatInput.value);
+      if(formsInput) safeSetLocalStorage('mro_forms_link', formsInput.value);
+      if(demoInput) safeSetLocalStorage('mro_push_demo_mode', demoInput.checked ? '1' : '0');
+      if(thresholdInput) safeSetLocalStorage('mro_alert_threshold_hours', String(Math.max(1, Number(thresholdInput.value) || 3)));
+      if(refreshInput) safeSetLocalStorage('mro_auto_refresh_interval', refreshInput.value || '0');
+      closeCfg();
+      toast('系统配置已保存');
+    }
+
+    window.openSettingsPanel = openCfg;
+    window.closeSettingsPanel = closeCfg;
+    window.saveSettings = cfgSave;
+    window.openCfg = openCfg;
+    window.closeCfg = closeCfg;
+    window.cfgSave = cfgSave;
+
+    const bindBtnOpenCfg=document.getElementById('btnOpenCfg');
+    const bindBtnCloseCfg=document.getElementById('btnCloseCfg');
+    const bindBtnCloseCfgX=document.getElementById('btnCloseCfgX');
+    const bindBtnClosePreview=document.getElementById('btnClosePreview');
+    const bindBtnClosePreviewX=document.getElementById('btnClosePreviewX');
+    const bindPreviewOverlay=document.getElementById('previewOverlay');
+    const bindBtnCfgSave=document.getElementById('btnCfgSave');
+    const bindBtnCfgAdd=document.getElementById('btnCfgAdd');
+    if(bindBtnOpenCfg) bindBtnOpenCfg.onclick = openCfg;
+    if(bindBtnCloseCfg) bindBtnCloseCfg.onclick = closeCfg;
+    if(bindBtnCloseCfgX) bindBtnCloseCfgX.onclick = closeCfg;
+    if(bindBtnClosePreview) bindBtnClosePreview.onclick = closePushPreview;
+    if(bindBtnClosePreviewX) bindBtnClosePreviewX.onclick = closePushPreview;
+    if(bindPreviewOverlay) bindPreviewOverlay.onclick = (e) => { if(e.target.id==='previewOverlay') closePushPreview(); };
+    if(bindBtnCfgSave) bindBtnCfgSave.onclick = cfgSave;
+    if(bindBtnCfgAdd) bindBtnCfgAdd.onclick = ()=>{
+      const nameEl=document.getElementById('cfgNewName');
+      const emailEl=document.getElementById('cfgNewEmail');
+      const n=(nameEl?.value||'').trim();
+      const e=(emailEl?.value||'').trim();
+      if(!n||!e)return toast('请填写姓名和邮箱','red');
+      if(!Array.isArray(_cfgBuf)) _cfgBuf=loadUserMap();
+      _cfgBuf.push({name:n,email:e});
+      saveUserMap(_cfgBuf);
+      if(nameEl) nameEl.value='';
+      if(emailEl) emailEl.value='';
+      renderCfgRows();
+    };
   </script>
 
   <!-- ══ DETAIL MODAL ══ -->
@@ -1391,17 +1690,6 @@
   </div>
 
   <script>
-    // ══ CLOCK ══
-    function updateClock(){
-      const now = new Date();
-      const pad = n => String(n).padStart(2,'0');
-      document.getElementById('topClock').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-      const days=['日','一','二','三','四','五','六'];
-      document.getElementById('topDate').textContent = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} 周${days[now.getDay()]}`;
-    }
-    updateClock();
-    setInterval(updateClock,1000);
-
     // ══ MODULE TABS (3 tabs) ══
     function initModuleTabs(){
       document.querySelectorAll('.module-tab').forEach(tab => {
@@ -1836,7 +2124,7 @@
     async function resolveFileHandle(key,options={}){if(sessionFileHandles[key])return sessionFileHandles[key];const includeShared=options.includeShared!==false;let handle=await getHandleFromDb(key).catch(()=>null);let sharedFallback=false;if(!handle&&includeShared&&isModuleKey(key)){handle=sessionFileHandles[SHARED_REPAIR_HANDLE_KEY]||await getHandleFromDb(SHARED_REPAIR_HANDLE_KEY).catch(()=>null);sharedFallback=!!handle;}if(handle){if(!sharedFallback)sessionFileHandles[key]=handle;const cfg=getCfgByKey(key);if(cfg&&!cfg.boundFileName)cfg.boundFileName=handle.name||'';saveState();}return handle;}
     async function clearBoundHandle(key){delete sessionFileHandles[key];await deleteHandleFromDb(key);await deleteSnapshotFromDb(key).catch(()=>{});const cfg=getCfgByKey(key);cfg.boundFileName='';if(cfg.sourceType==='bound-file')cfg.sourceType='manual-json';saveState();}
 
-    async function ensureXlsxLib(){if(window.XLSX)return window.XLSX;const sources=['./xlsx.full.min.js','https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'];for(const src of sources){try{await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=true;script.onload=resolve;script.onerror=()=>reject(new Error('加载失败: '+src));document.head.appendChild(script);});if(window.XLSX)return window.XLSX;}catch(e){}}throw new Error('未能加载 XLSX 解析库。若公司网络拦截外网，请把 xlsx.full.min.js 放到 HTML 同目录再重试。');}
+    async function ensureXlsxLib(){if(window.XLSX)return window.XLSX;const sources=['./libs/xlsx.full.min.js'];for(const src of sources){try{await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=true;script.onload=resolve;script.onerror=()=>reject(new Error('加载失败: '+src));document.head.appendChild(script);});if(window.XLSX)return window.XLSX;}catch(e){}}throw new Error('未能加载 XLSX 解析库。请确认 libs/xlsx.full.min.js 已保留在仓库中。');}
     function rowsToCsv(rows){return rows.map(row=>row.map(cell=>{const str=String(cell??'');return/[\",\n\r]/.test(str)?`"${str.replaceAll('"','""')}"`:`${str}`;}).join(',')).join('\n');}
     function parseHtmlTableRows(text){const doc=new DOMParser().parseFromString(text,'text/html');const table=doc.querySelector('table');if(!table)throw new Error('HTML 中未找到表格');const rows=[...table.querySelectorAll('tr')].map(tr=>[...tr.cells].map(td=>td.textContent.trim()));return rows.filter(row=>row.some(Boolean));}
     function getWorkbookRows(workbook,preferredSheetKeyword=''){let sheetName=workbook.SheetNames[0];if(preferredSheetKeyword){const hit=workbook.SheetNames.find(name=>String(name).includes(preferredSheetKeyword));if(hit)sheetName=hit;}const ws=workbook.Sheets[sheetName];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''}).map(row=>row.map(v=>String(v??'').trim()));return{sheetName,ws,rows};}
@@ -2040,7 +2328,15 @@
     function loadState(){try{const raw=safeLocalStore.getItem(STORAGE_KEY);if(!raw)return deepClone(defaultState);const parsed=JSON.parse(raw);const merged=deepClone(defaultState);merged.activeAttendanceTab=parsed.activeAttendanceTab||'present';if(parsed.attendance)merged.attendance={...merged.attendance,...parsed.attendance};if(parsed.modules){Object.keys(merged.modules).forEach(k=>{if(parsed.modules[k])merged.modules[k]={...merged.modules[k],...parsed.modules[k]};});}return merged;}catch(e){return deepClone(defaultState);}}
     function saveState(skipSync=false){try{safeLocalStore.setItem(STORAGE_KEY,JSON.stringify(state));}catch(e){console.warn('[state] save failed',e);}if(!skipSync)scheduleSyncBroadcast('state-save');}
     function deepClone(obj){return JSON.parse(JSON.stringify(obj));}
-    function toast(text){alert(text);}
+    function toast(msg,type='info',ms=4500){
+      const el=document.getElementById('toast');
+      if(!el) return alert(msg);
+      el.className=`toast ${type}`;
+      el.innerHTML={'ok':'✅','err':'❌','info':'ℹ️'}[type]+' '+msg;
+      el.classList.add('show');
+      clearTimeout(el._t);
+      el._t=setTimeout(()=>el.classList.remove('show'),ms);
+    }
 
     function csvSplit(line){const result=[];let cur='';let inQuotes=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(inQuotes&&line[i+1]==='"'){cur+='"';i++;}else{inQuotes=!inQuotes;}}else if(ch===','&&!inQuotes){result.push(cur.trim());cur='';}else{cur+=ch;}}result.push(cur.trim());return result;}
     function parseCsvToModule(text){const lines=text.trim().split(/\r?\n/).filter(Boolean);if(!lines.length)throw new Error('CSV为空');const head=csvSplit(lines[0]).map(s=>s.toLowerCase());const labelIndex=head.indexOf('label');const valueIndex=head.indexOf('value');if(labelIndex<0||valueIndex<0)throw new Error('模块CSV至少需包含 label,value 两列');const labels=[];const values=[];const detailMap={};let meta='';let wip='';const extraCols=head.map((name,idx)=>({name,idx})).filter(x=>!['label','value'].includes(x.name));for(let i=1;i<lines.length;i++){const row=csvSplit(lines[i]);const label=row[labelIndex]||'';const value=Number(row[valueIndex]||0);labels.push(label);values.push(value);const detailObj={};extraCols.forEach(col=>{detailObj[col.name]=row[col.idx]??'';});if(Object.keys(detailObj).length){detailMap[label]=[detailObj];if(detailObj.meta)meta=detailObj.meta;if(detailObj.wip)wip=detailObj.wip;}}return{labels,values,detailMap,meta,wip};}
@@ -2289,10 +2585,10 @@
     // ── ORG CHART FUNCTIONS ──
     function toggleOrgBody(){
       const body=document.getElementById("orgBody");
-      const icon=document.getElementById("orgToggleIcon");
       if(!body) return;
       body.classList.toggle("open");
-      icon.classList.toggle("open");
+      const icon=body.closest(".org-section")?.querySelector(".org-toggle-icon");
+      if(icon) icon.classList.toggle("open");
     }
 
     // 姓名别名映射（兼容出勤数据中可能的简称/全称）
@@ -2352,6 +2648,30 @@
       initDashboardSync();
       initSharedBindingBridge();
       initModuleTabs();
+
+      // Bind Config Buttons
+      const btnOpenCfg = document.getElementById('btnOpenCfg');
+      if(btnOpenCfg) btnOpenCfg.onclick = openCfg;
+
+      document.querySelectorAll('.cfg-close').forEach(btn => {
+        btn.onclick = closeCfg;
+      });
+
+      // Clock
+      function updateClock(){
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const clockEl = document.getElementById('topClock');
+        const dateEl = document.getElementById('topDate');
+        if(clockEl) clockEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        if(dateEl){
+          const days=['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+          dateEl.textContent = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} ${days[now.getDay()]}`;
+        }
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+
       document.getElementById('attendancePanelTitle').textContent=state.attendance.title;
       document.querySelectorAll('[data-action="refresh"]').forEach(btn=>{btn.addEventListener('click',()=>{const key=btn.dataset.key;if(key==='attendance')refreshAttendance();else refreshModule(key);});});
       document.querySelectorAll('[data-action="config"]').forEach(btn=>{btn.addEventListener('click',()=>openConfig(btn.dataset.key));});
@@ -2398,7 +2718,11 @@
       document.getElementById('btnAIClose').addEventListener('click', () => document.getElementById('aiMask').classList.remove('show'));
       document.getElementById('btnAIRefresh').addEventListener('click', runGemmaAnalysis);
 
-    init();
+      if(safeGetLocalStorage('mro_push_demo_mode', null) === null) {
+        safeSetLocalStorage('mro_push_demo_mode', '1');
+      }
+      init();
   </script>
+  <div id="toast" class="toast info">ℹ️ 提示信息</div>
 </body>
 </html>

@@ -4,13 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>产线维修领退料分析 - Gemma 4 智能分析版</title>
+  <title>领退料分析看板 - Gemma 4 Hackathon Demo</title>
   <script src="gemma_config.js"></script>
   <script src="gemma_adapter.js"></script>
-  <script src="lib/xlsx.full.min.js"></script>
+  <script src="libs/xlsx.full.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&family=Rajdhani:wght@600;700&display=swap');
-
     :root {
       --bg: #0d1422;
       --surface: #131a28;
@@ -1311,6 +1309,7 @@
       transform: translateY(20px);
       opacity: 0;
       transition: all .3s;
+      pointer-events: none;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -1829,17 +1828,16 @@
 
   <header>
     <div class="logo">
-      <div class="logo-icon"><img src="icons/logo.png" alt="Gemma 4 Logo"></div>
       <div>
-        <div class="logo-text">Gemma 4 领退料智能分析看板</div>
-        <div class="logo-sub">Gemma 4 Data Hub · 产线维修课 <span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:8px;">DEMO</span></div>
+        <div class="logo-text">Gemma 4 Hackathon Demo</div>
+        <div class="logo-sub">领退料分析 · Hackathon Demo <span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:8px;">DEMO</span></div>
       </div>
     </div>
     <div class="header-right">
       <span id="eipUserBadge"
         style="font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);border-radius:20px;padding:3px 10px;display:none;"></span>
-      <button class="btn btn-outline btn-sm" id="btnOpenCfg" style="font-size:11px;">⚙ 员工账号</button>
-      <div id="apiStatus" style="font-size:11px;color:var(--text3);">检查中...</div>
+      <button class="btn btn-outline btn-sm" id="btnOpenCfg" style="font-size:11px; display:flex; align-items:center; gap:4px;">⚙️ 系统设置</button>
+      <div id="apiStatus" style="font-size:11px;color:var(--text3);">Gemma 4 Demo Mode</div>
       <div class="live-badge">
         <div class="live-dot"></div><span id="currentTime">--:--:--</span>
       </div>
@@ -1890,20 +1888,8 @@
     </div>
 
     <!-- EIP 未登入提示 -->
-    <div id="eipLoginWarning"
-      style="display:none;background:rgba(255,197,61,.07);border:1px solid rgba(255,197,61,.35);border-radius:var(--radius);padding:14px 20px;margin-bottom:14px;display:none;align-items:center;justify-content:space-between;gap:12px;">
-      <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
-        <span style="font-size:18px;">🔐</span>
-        <div>
-          <div style="color:#ffc53d;font-weight:600;" id="eipWarnTitle">请先验证身份</div>
-          <div style="color:var(--text3);font-size:11px;margin-top:2px;" id="eipWarnSub">验证后看板将自动获取演示数据</div>
-        </div>
-      </div>
-      <button class="btn btn-sm" id="btnEipLogin"
-        style="background:rgba(255,197,61,.15);color:#ffc53d;border:1px solid rgba(255,197,61,.4);white-space:nowrap;">
-        🌐 打开 EIP 登入
-      </button>
-    </div>
+    <!-- EIP 登录组件已在演示版中隐藏 -->
+    <div id="eipLoginWarning" style="display:none !important;"></div>
 
     <!-- ⚠ 超时预警 -->
     <div class="alert-panel" id="alertPanel">
@@ -1914,7 +1900,7 @@
         </div>
         <div class="alert-actions">
           <button class="btn btn-sm btn-outline" id="btnPushCfg" style="font-size:11px;">⏰ 推送设置</button>
-          <button class="btn btn-sm btn-teams" id="btnSendTeams">📣 推送 Teams</button>
+          <button class="btn btn-sm btn-teams" id="btnSendTeams">📣 测试推送</button>
           <button class="btn btn-sm btn-outline" id="btnExportAlert">📤 导出预警</button>
         </div>
       </div>
@@ -2182,7 +2168,7 @@
       </div>
       <div class="cfg-modal-ft">
         <button class="btn btn-outline btn-sm" id="btnClosePushCfg">关闭</button>
-        <button class="btn btn-primary btn-sm" id="btnPushNow">📣 立即推送</button>
+        <button class="btn btn-primary btn-sm" id="btnPushNow">📣 测试推送</button>
       </div>
     </div>
   </div>
@@ -2191,18 +2177,49 @@
   <div class="cfg-modal-overlay" id="cfgOverlay">
     <div class="cfg-modal">
       <div class="cfg-modal-hd">
-        <div style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;">👤 员工账号配置 <span
-            style="font-size:11px;color:var(--text3);font-weight:400;">（用于 Teams @提及）</span></div>
+        <div style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;">⚙️ 系统配置 & 推送设置 <span
+            style="font-size:11px;color:var(--text3);font-weight:400;">（支持 Teams & 企业微信）</span></div>
         <button class="modal-close" id="btnCloseCfgX">✕</button>
       </div>
       <div class="cfg-modal-body">
         <div class="cfg-hint">
-          填写员工姓名（与 EIP 系统一致）和对应的 Teams 邮箱。<br>
-          推送预警时，有超时项的员工将被 @提及。数据保存在本地浏览器。<br>
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Teams Webhook URL（超时预警推送用）</div>
-            <input class="cfg-input" id="cfgWebhookInput" placeholder="https://xxx.webhook.office.com/..."
-              style="width:100%;">
+          配置推送目标及人员映射关系。报警消息将推送到指定的 Webhook 地址。<br>
+          <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:12px; background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:8px;">
+            <div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Teams Webhook URL</div>
+              <input class="cfg-input" id="cfgWebhookInput" placeholder="https://xxx.webhook.office.com/..."
+                style="width:100%; font-size:11px;">
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">企业微信 Webhook URL</div>
+              <input class="cfg-input" id="cfgWechatInput" placeholder="https://qyapi.weixin.qq.com/..."
+                style="width:100%; font-size:11px;">
+            </div>
+            <div style="grid-column: span 2;">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Forms 闭环反馈链接（拼接到消息末尾）</div>
+              <input class="cfg-input" id="cfgFormsInput" placeholder="https://forms.office.com/..."
+                style="width:100%; font-size:11px;">
+            </div>
+            <div style="grid-column: span 2; display: flex; align-items: center; gap: 10px; margin-top: 5px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05);">
+              <input type="checkbox" id="cfgDemoMode" style="width: 16px; height: 16px; cursor: pointer;">
+              <label for="cfgDemoMode" style="font-size: 13px; color: var(--accent2); cursor: pointer; font-weight: 600;">Demo 模式：不真实发送，仅生成推送预览</label>
+            </div>
+            <div style="grid-column: span 2; margin-top: 5px;">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">报警阈值（小时）</div>
+              <input class="cfg-input" id="cfgAlertThresholdHours" type="number" min="1" step="1" value="3"
+                style="width:100%; font-size:11px;">
+            </div>
+            <div style="grid-column: span 2; margin-top: 5px;">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">自动刷新间隔</div>
+              <select class="cfg-input" id="cfgAutoRefreshInterval" style="width:100%; font-size:11px;">
+                <option value="0">关闭</option>
+                <option value="5">5 分钟</option>
+                <option value="10">10 分钟</option>
+                <option value="30">30 分钟</option>
+                <option value="60">1 小时</option>
+                <option value="120">2 小时</option>
+              </select>
+            </div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 2fr auto;gap:8px;margin-bottom:8px;">
@@ -2224,6 +2241,23 @@
     </div>
   </div>
 
+  <!-- ══ PUSH PREVIEW MODAL ══ -->
+  <div class="cfg-modal-overlay" id="previewOverlay" style="z-index: 10001;">
+    <div class="cfg-modal" style="width: min(860px, 95vw);">
+      <div class="cfg-modal-hd">
+        <div style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;">📣 推送内容预览 <span style="font-size:10px;background:var(--accent2);color:#000;padding:2px 7px;border-radius:999px;">DEMO MODE</span></div>
+        <button class="modal-close" id="btnClosePreviewX">✕</button>
+      </div>
+      <div class="cfg-modal-body" style="padding: 20px;">
+        <div id="previewContent" style="background:linear-gradient(180deg,rgba(17,27,45,.82),rgba(8,13,24,.86)); border:1px solid rgba(90,163,255,.22); border-radius:14px; padding:18px; font-size:12px; line-height:1.6; white-space:normal; max-height:62vh; overflow-y:auto; color:var(--text2); scrollbar-width: thin;"></div>
+        <div style="margin-top:15px; font-size:11px; color:var(--text3); text-align:center;">Demo 模式下，系统已生成正式消息但未发送至 Webhook。</div>
+      </div>
+      <div class="cfg-modal-ft">
+        <button class="btn btn-outline btn-sm" id="btnClosePreview" style="padding: 8px 24px;">我知道了</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ AI ANALYSIS MODAL ══ -->
   <div class="modal-overlay" id="aiOverlay">
     <div class="modal" style="width:min(600px,90vw);max-height:85vh;display:flex;flex-direction:column;">
@@ -2235,11 +2269,12 @@
         <div class="loading-spinner" style="border:3px solid rgba(61,139,255,.1);border-top:3px solid #3d8bff;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto 10px;"></div>
         <p style="color:var(--text3);">Gemma 4 正在深度扫描物料风险...</p>
       </div>
-      <div id="aiResult" class="ai-content-area" style="padding:20px;line-height:1.7;color:var(--text);font-size:13px;overflow-y:auto;flex:1;white-space:pre-wrap;">
+      <div id="aiResult" class="ai-content-area" style="padding:15px; max-height:65vh; overflow-y:auto; scrollbar-width: thin; flex: 1;">
       </div>
-      <div class="modal-footer" style="padding:15px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--border);">
+      <div class="modal-footer" style="padding:15px; display:flex; justify-content:flex-end; gap:10px; border-top: 1px solid rgba(255,255,255,.05);">
         <button class="btn btn-outline" id="btnAIClose">关闭</button>
-        <button class="btn btn-green" id="btnAIRefresh">刷新分析报告</button>
+        <button class="btn btn-outline" id="btnAICopy">复制报告</button>
+        <button class="btn btn-green" id="btnAIRefresh" style="box-shadow: 0 0 15px rgba(0,212,170,.2);">重新生成分析</button>
       </div>
     </div>
   </div>
@@ -2247,8 +2282,31 @@
   <style>
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     #aiOverlay.open { display: flex; opacity: 1; pointer-events: auto; }
-    .ai-content-area h3 { color: #3d8bff; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid rgba(61,139,255,.2); padding-bottom: 4px; }
-    .ai-content-area strong { color: #00d4aa; }
+
+    /* Standardized Gemma Report Styles */
+    .gemma-report { font-family: 'Noto Sans SC', sans-serif; color: var(--text); }
+    .report-header { margin-bottom: 20px; border-bottom: 1px solid rgba(61,139,255,.1); padding-bottom: 15px; }
+    .report-title-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .report-title-row h2 { margin: 0; font-size: 18px; color: #3d8bff; }
+    .report-icon { font-size: 20px; }
+    .demo-tag { font-size: 9px; background: rgba(61,139,255,.15); color: #3d8bff; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+    .report-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text3); }
+
+    .risk-badge { padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 10px; }
+    .risk-low { background: rgba(0,212,170,.1); color: #00d4aa; border: 1px solid rgba(0,212,170,.2); }
+    .risk-mid { background: rgba(255,170,0,.1); color: #ffaa00; border: 1px solid rgba(255,170,0,.2); }
+    .risk-high { background: rgba(255,77,77,.1); color: #ff4d4d; border: 1px solid rgba(255,77,77,.2); }
+
+    .report-kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .kpi-card { background: rgba(255,255,255,.03); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.05); }
+    .kpi-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+    .kpi-value { font-size: 15px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+    .report-section { margin-bottom: 18px; }
+    .report-section h3 { font-size: 14px; color: #3d8bff; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; border-bottom: none; padding-bottom: 0; }
+    .section-content { font-size: 12.5px; line-height: 1.6; color: rgba(235,245,255,.85); }
+
+    .report-footer { margin-top: 25px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,.1); font-size: 10.5px; color: var(--text3); text-align: center; }
   </style>
 
   <script>
@@ -2261,13 +2319,25 @@
       result.innerHTML = '';
       try {
         const report = await window.GemmaAdapter.analyze('material', window._allData);
-        const htmlReport = report.replace(/### (.*)/g, '<h3>$1</h3>').replace(/\*\* (.*)\*\*/g, '<strong>$1</strong>');
-        result.innerHTML = htmlReport;
+        result.innerHTML = window.GemmaAdapter.renderReport(report);
       } catch (e) {
-        result.innerHTML = `<p style="color:#ff4d4d;">分析失败: ${e.message}</p>`;
+        result.innerHTML = `<div style="padding:20px;text-align:center;color:#ff4d4d;">
+          <div style="font-size:30px;margin-bottom:10px;">⚠️</div>
+          <p>分析失败: ${e.message}</p>
+        </div>`;
       } finally {
         loading.style.display = 'none';
       }
+    }
+
+    function copyAIReport() {
+      const result = document.getElementById('aiResult');
+      const text = result.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        toast('报告已复制到剪贴板');
+      }).catch(err => {
+        toast('复制失败: ' + err);
+      });
     }
     
     document.addEventListener('DOMContentLoaded', () => {
@@ -2275,6 +2345,7 @@
       document.getElementById('btnCloseAI').addEventListener('click', () => document.getElementById('aiOverlay').classList.remove('open'));
       document.getElementById('btnAIClose').addEventListener('click', () => document.getElementById('aiOverlay').classList.remove('open'));
       document.getElementById('btnAIRefresh').addEventListener('click', runGemmaAnalysis);
+      document.getElementById('btnAICopy').addEventListener('click', copyAIReport);
     });
   </script>
 
