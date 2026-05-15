@@ -5,7 +5,7 @@
 /* ── 库检测 ── */
 async function _ensureLibs(){
   if(typeof XLSX === 'undefined'){
-    console.warn('[MRO] XLSX 未加载，导出 Excel 功能不可用。请运行 SETUP.bat 下载库文件。');
+    console.warn('[MRO] XLSX 未加载，Excel 将自动降级为 CSV 导出。请确认 libs/xlsx.full.min.js 存在。');
   }
 }
 
@@ -38,12 +38,16 @@ function openEipLogin(){
 /* 显示/隐藏 EIP 未登入警告 */
 function showEipWarning(title, sub){
   const el = document.getElementById('eipLoginWarning');
-  document.getElementById('eipWarnTitle').textContent = title || '请先登入 EIP';
-  document.getElementById('eipWarnSub').textContent   = sub   || '登入后看板将自动获取实时数据';
+  if(!el) return;
+  const titleEl = document.getElementById('eipWarnTitle');
+  const subEl = document.getElementById('eipWarnSub');
+  if(titleEl) titleEl.textContent = title || '请先登入 EIP';
+  if(subEl) subEl.textContent = sub || '登入后看板将自动获取实时数据';
   el.style.display = 'flex';
 }
 function hideEipWarning(){
-  document.getElementById('eipLoginWarning').style.display = 'none';
+  const el = document.getElementById('eipLoginWarning');
+  if(el) el.style.display = 'none';
 }
 
 let allData=[], filteredData=[];
@@ -54,8 +58,65 @@ let charts={};
 let _overtimeItems=[];
 
 /* ─ helpers ─ */
+function $(id){
+  return document.getElementById(id);
+}
+function safeGetLocalStorage(key, fallback=''){
+  try{
+    const value = window.localStorage.getItem(key);
+    return value === null ? fallback : value;
+  }catch(e){
+    return fallback;
+  }
+}
+function safeSetLocalStorage(key, value){
+  try{
+    window.localStorage.setItem(key, String(value));
+    return true;
+  }catch(e){
+    console.warn('[storage] set failed:', key, e);
+    return false;
+  }
+}
+function safeGet(key, fallback=''){return safeGetLocalStorage(key, fallback);}
+function safeSet(key, value){return safeSetLocalStorage(key, value);}
+function safeGetJsonLocalStorage(key, fallback){
+  const raw = safeGetLocalStorage(key, null);
+  if(raw === null) return fallback;
+  try{return JSON.parse(raw);}catch(e){return fallback;}
+}
+function formatExportStamp(date=new Date()){
+  const pad=n=>String(n).padStart(2,'0');
+  return `${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+function downloadBlob(filename, content, mimeType){
+  try{
+    const blob=new Blob([content],{type:mimeType});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    console.log('[export] download triggered', filename);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    return true;
+  }catch(err){
+    console.error('[export] download failed', err);
+    try{alert('导出下载失败：'+(err&&err.message?err.message:String(err)));}catch(_){}
+    return false;
+  }
+}
+function downloadCsv(filename, rows){
+  const csvRows=rows.map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(','));
+  return downloadBlob(filename,'\uFEFF'+csvRows.join('\n'),'text/csv;charset=utf-8');
+}
+
 function toast(msg,type='info',ms=4500){
   const el=document.getElementById('toast');
+  if(!el) return;
   el.className=`toast ${type}`;
   el.innerHTML={'ok':'✅','err':'❌','info':'ℹ️'}[type]+' '+msg;
   el.classList.add('show');
@@ -93,89 +154,27 @@ function sendMsg(msg){
 
 async function fetchData(reset=false){
   if(reset) allData=[];
-  showLoading('检查 EIP 登入状态...',5);
-  console.log('[MRO] fetchData started, reset=', reset);
+  showLoading('初始化 Gemma 4 Demo 数据...',5);
+  console.log('[MRO] fetchData started (Hackathon Demo Mode)');
 
-  // 先检查 EIP cookie（经 background 读取）
-  let cookieInfo;
-  try {
-    cookieInfo = await sendMsg({action:'getEipCookie'});
-    console.log('[MRO] cookie check result:', cookieInfo);
-  } catch(e) {
-    console.error('[MRO] cookie check error:', e);
-    cookieInfo = {ok: false};
-  }
-  if(!cookieInfo.ok){
+  // 演示版直接进入 Demo 模式，不执行真实权限检查
+  setTimeout(() => {
+    hideEipWarning();
+    setStatus('ok','已连接 Gemma 4 演示引擎');
+    const apiStatusEl = document.getElementById('apiStatus');
+    if(apiStatusEl) apiStatusEl.innerHTML='<span style="color:#00d4aa">🟢 Demo Mode Active</span>';
+    const badge = document.getElementById('eipUserBadge');
+    if(badge){ badge.textContent='🟢 Hackathon Demo'; badge.style.display=''; }
+
+    useDemo();
+    toast('✅ 已加载 Gemma 4 脱敏演示数据','ok');
+
+    // 更新最后更新时间
+    const lastUpdateEl = document.getElementById('lastUpdate');
+    if(lastUpdateEl) lastUpdateEl.textContent = new Date().toLocaleString('zh-CN') + ' (Demo)';
+
     hideLoading();
-    showEipWarning('请先验证数据集权限','验证后即可获取 Gemma 4 演示数据');
-    setStatus('wait','未连接数据集');
-    document.getElementById('apiStatus').innerHTML='<span style="color:#ffc53d">⚠ 未连接数据引擎</span>';
-    useDemo(); return;
-  }
-  hideEipWarning();
-  setStatus('ok','已连接 Gemma 4 数据引擎');
-  document.getElementById('apiStatus').innerHTML='<span style="color:#00d4aa">🟢 数据引擎已就绪</span>';
-  const badge = document.getElementById('eipUserBadge');
-  if(badge){ badge.textContent='🟢 演示模式就绪'; badge.style.display=''; }
-
-  // 收集筛选条件（对应 wip_component_issue_head.list 参数）
-  const filters={
-    line_name_type:    document.getElementById('filterLineType').value || '维修',
-    line_name:         document.getElementById('filterLineName').value || '维修',
-    job_name:          document.getElementById('filterJobName').value.trim(),
-    part:              document.getElementById('filterPart').value.trim(),
-    create_date_start: document.getElementById('dateFrom').value,
-    create_date_end:   document.getElementById('dateTo').value,
-    create_user:       (document.getElementById('filterOperator')||{}).value.trim() || '',
-  };
-
-  setProgress(15,'请求数据...');
-  const allRows=[];
-  let total=0, page=1;
-  const pageSize=50;
-
-  try{
-    while(true){
-      // ★ 关键：通过 sendMsg 让 background.js 发请求（绕过 CORS）
-      const result = await sendMsg({
-        action: 'fetchEipData',
-        filters, page, pageSize,
-      });
-
-      if(!result.ok){
-        if(result.error==='NO_COOKIE'||result.error==='SESSION_EXPIRED'){
-          hideLoading();
-          showEipWarning('EIP 会话已过期','请在 Chrome 中重新登入 EIP，然后点「刷新全量」');
-          setStatus('wait','会话已过期');
-          document.getElementById('apiStatus').innerHTML='<span style="color:#ff6b35">⚠ 会话过期</span>';
-          useDemo(); return;
-        }
-        throw new Error(result.error || '请求失败');
-      }
-
-      allRows.push(...(result.rows||[]));
-      total = result.total || 0;
-      setProgress(15+Math.min(70,Math.round(allRows.length/Math.max(total,1)*70)),'加载数据...');
-
-      if(allRows.length>=total || (result.rows||[]).length<pageSize) break;
-      page++;
-    }
-
-    apiTotal=total;
-    _debugLogged=false;
-    allData=allRows.map(mapRow);
-    document.getElementById('totalInfo').textContent=`EIP 总计 ${apiTotal} 条，已拉取 ${allData.length} 条`;
-    const tb=document.getElementById('apiTotalBadge');
-    tb.textContent=`EIP 总量 ${apiTotal} 条`; tb.style.display='';
-    applyLocalFilter(); updateAll();
-    document.getElementById('lastUpdate').textContent=new Date().toLocaleString('zh-CN');
-    toast(`✅ 加载完成，共 ${allData.length} 条记录`,'ok');
-    setProgress(100); setTimeout(hideLoading,400);
-
-  }catch(e){
-    toast('请求失败：'+e.message,'err',6000);
-    if(!allData.length) useDemo(); else hideLoading();
-  }
+  }, 800);
 }
 
 /* ─ 日期/时间自动探测 ─ */
@@ -296,7 +295,7 @@ function rdcPushToIntegration(){
   try{ if(window.parent && window.parent!==window) window.parent.postMessage(payload,'*'); }catch(_){}
   try{ if(window.top && window.top!==window && window.top!==window.parent) window.top.postMessage(payload,'*'); }catch(_){}
   try{ if(__rdcBus) __rdcBus.postMessage(payload); }catch(_){}
-  try{ localStorage.setItem('RDC_EXT_DATA__mro_line_issue_return', JSON.stringify(payload)); }catch(_){}
+  safeSetLocalStorage('RDC_EXT_DATA__mro_line_issue_return', JSON.stringify(payload));
 }
 /* 周期性兜底推送（60s），防止集成侧未监听到首次消息 */
 setInterval(()=>{ try{ rdcPushToIntegration(); }catch(_){ } }, 60000);
@@ -455,7 +454,8 @@ function updateTop10(){
 ═══════════════════════════════════════ */
 function checkOvertimeAndRender(){
   const now=new Date();
-  const THREE_H=3*60*60*1000;
+  const thresholdHours=Math.max(1, Number(safeGetLocalStorage('mro_alert_threshold_hours','3')) || 3);
+  const THREE_H=thresholdHours*60*60*1000;
 
   // 有退料的工单（用 job_name 匹配）
   const returnedJobs=new Set(
@@ -489,12 +489,16 @@ function checkOvertimeAndRender(){
       const h=Math.floor((now-d)/3600000);
       hours=h+'小时';
     }
-    return {...r,_overtimeHours:hours};
+    return {...r,_overtimeHours:hours,_alertStatus:`领料超${thresholdHours}小时未退料`};
   });
 
   const panel=document.getElementById('alertPanel');
   const list=document.getElementById('alertList');
   document.getElementById('alertCount').textContent=`${_overtimeItems.length} 条`;
+  const alertTitle=document.querySelector('.alert-title');
+  if(alertTitle && alertTitle.firstChild){
+    alertTitle.firstChild.textContent=`⚠️ 领料超${thresholdHours}小时未退料预警 `;
+  }
 
   if(!_overtimeItems.length){
     panel.classList.remove('show');
@@ -516,11 +520,17 @@ function checkOvertimeAndRender(){
    员工账号配置（localStorage）
 ═══════════════════════════════════════ */
 const CFG_KEY='mro_user_map';
+function normalizeUserMap(arr){
+  return (Array.isArray(arr)?arr:[]).map(u=>({
+    name:String(u?.name||'').trim(),
+    email:String(u?.email||'').trim()
+  })).filter(u=>u.name||u.email);
+}
 function loadUserMap(){
-  try{return JSON.parse(localStorage.getItem(CFG_KEY)||'[]');}catch(e){return [];}
+  return normalizeUserMap(safeGetJsonLocalStorage(CFG_KEY, []));
 }
 function saveUserMap(arr){
-  try{localStorage.setItem(CFG_KEY,JSON.stringify(arr));}catch(e){console.warn('storage blocked');}
+  return safeSetLocalStorage(CFG_KEY, JSON.stringify(normalizeUserMap(arr)));
 }
 function getUserEmail(name){
   if(!name) return '';
@@ -543,17 +553,42 @@ function getUserEmail(name){
   return fuzzy?fuzzy.email:'';
 }
 
+function openSystemSettings() { openCfg(); }
+
 function openCfg(){
+  console.log('[settings] open panel');
+  _cfgBuf = loadUserMap();
   renderCfgRows();
-  const whEl = document.getElementById('cfgWebhookInput');
-  if(whEl) whEl.value = localStorage.getItem('mro_teams_webhook')||'';
-  document.getElementById('cfgOverlay').classList.add('open');
+  if($('cfgWebhookInput')) $('cfgWebhookInput').value = safeGetLocalStorage('mro_teams_webhook','');
+  if($('cfgWechatInput'))  $('cfgWechatInput').value  = safeGetLocalStorage('mro_wechat_webhook','');
+  if($('cfgFormsInput'))   $('cfgFormsInput').value   = safeGetLocalStorage('mro_forms_link','');
+  if($('cfgDemoMode'))     $('cfgDemoMode').checked   = safeGetLocalStorage('mro_push_demo_mode','1') !== '0';
+  if($('cfgAlertThresholdHours')) $('cfgAlertThresholdHours').value = safeGetLocalStorage('mro_alert_threshold_hours','3');
+  if($('cfgAutoRefreshInterval')){
+    const savedInterval=safeGetLocalStorage('mro_auto_refresh_interval', $('autoRefreshInterval')?.value || '60');
+    $('cfgAutoRefreshInterval').value=savedInterval;
+  }
+  const overlay = $('cfgOverlay');
+  if(overlay){
+    overlay.style.display = 'flex';
+    overlay.classList.add('open');
+  }else{
+    console.error('[settings] cfgOverlay missing');
+    try{alert('系统设置打开失败：未找到设置面板 cfgOverlay');}catch(_){}
+  }
 }
-function closeCfg(){document.getElementById('cfgOverlay').classList.remove('open');}
+function closeCfg(){
+  const overlay = $('cfgOverlay');
+  if(overlay){
+    overlay.classList.remove('open');
+    overlay.style.display = '';
+  }
+}
 
 function renderCfgRows(){
-  const map=loadUserMap();
+  const map=Array.isArray(_cfgBuf)?_cfgBuf:loadUserMap();
   const container=document.getElementById('cfgRows');
+  if(!container) return;
   if(!map.length){
     container.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0;">还没有配置，点「+ 添加」添加员工账号</div>';
     return;
@@ -578,21 +613,49 @@ function renderCfgRows(){
 
 let _cfgBuf=[];
 function cfgUpdate(i,field,val){
-  if(!_cfgBuf.length) _cfgBuf=[...loadUserMap()];
+  if(!Array.isArray(_cfgBuf)) _cfgBuf=loadUserMap();
+  if(!_cfgBuf[i]) return;
   _cfgBuf[i][field]=val;
 }
 function cfgDel(i){
-  const map=loadUserMap();map.splice(i,1);saveUserMap(map);_cfgBuf=[];renderCfgRows();toast('已删除','info',2000);}
+  if(!Array.isArray(_cfgBuf)) _cfgBuf=loadUserMap();
+  _cfgBuf.splice(i,1);
+  saveUserMap(_cfgBuf);
+  renderCfgRows();
+  toast('已删除','info',2000);
+}
 function cfgAddRow(){
-  const name=document.getElementById('cfgNewName').value.trim();
-  const email=document.getElementById('cfgNewEmail').value.trim();
+  const nameEl=document.getElementById('cfgNewName');
+  const emailEl=document.getElementById('cfgNewEmail');
+  const name=(nameEl?.value||'').trim();
+  const email=(emailEl?.value||'').trim();
   if(!name||!email){toast('姓名和邮箱都不能为空','err');return;}
-  const map=loadUserMap();map.push({name,email});saveUserMap(map);_cfgBuf=[];
-  document.getElementById('cfgNewName').value='';document.getElementById('cfgNewEmail').value='';
+  if(!Array.isArray(_cfgBuf)) _cfgBuf=loadUserMap();
+  _cfgBuf.push({name,email});
+  saveUserMap(_cfgBuf);
+  if(nameEl) nameEl.value='';
+  if(emailEl) emailEl.value='';
   renderCfgRows();toast(`已添加 ${name}`,'ok',2000);
 }
 function cfgSave(){
-  if(_cfgBuf.length){saveUserMap(_cfgBuf);_cfgBuf=[];}
+  if(!Array.isArray(_cfgBuf)) _cfgBuf=loadUserMap();
+  saveUserMap(_cfgBuf);
+  if($('cfgWebhookInput')) safeSetLocalStorage('mro_teams_webhook', $('cfgWebhookInput').value);
+  if($('cfgWechatInput')) safeSetLocalStorage('mro_wechat_webhook', $('cfgWechatInput').value);
+  if($('cfgFormsInput')) safeSetLocalStorage('mro_forms_link', $('cfgFormsInput').value);
+  if($('cfgDemoMode')) safeSetLocalStorage('mro_push_demo_mode', $('cfgDemoMode').checked ? '1' : '0');
+  if($('cfgAlertThresholdHours')){
+    const threshold=String(Math.max(1, Number($('cfgAlertThresholdHours').value) || 3));
+    safeSetLocalStorage('mro_alert_threshold_hours', threshold);
+  }
+  if($('cfgAutoRefreshInterval')){
+    const val=$('cfgAutoRefreshInterval').value || '0';
+    safeSetLocalStorage('mro_auto_refresh_interval', val);
+    if($('autoRefreshInterval')){
+      $('autoRefreshInterval').value=val;
+      setAutoRefresh();
+    }
+  }
   toast('✅ 保存成功','ok');closeCfg();
 }
 
@@ -602,10 +665,71 @@ function eipUrl(docNo){
   return '#'; // 演示版不提供真实 EIP 链接
 }
 
+function escapeHtml(str){
+  return String(str ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+
+function buildPushPreviewHtml(rows, platform='Teams / 企业微信'){
+  const items=Array.isArray(rows)&&rows.length?rows:_overtimeItems;
+  const grouped={};
+  items.forEach(r=>{
+    const owner=r['create_user_name']||r.operator||'未指定责任人';
+    if(!grouped[owner]) grouped[owner]=[];
+    grouped[owner].push(r);
+  });
+  const ownerNames=Object.keys(grouped);
+  const isDemo=safeGetLocalStorage('mro_push_demo_mode','1') !== '0';
+  const threshold=safeGetLocalStorage('mro_alert_threshold_hours','3');
+  const now=new Date().toLocaleString('zh-CN',{hour12:false});
+  const detailHtml=ownerNames.map(name=>{
+    const ownerItems=grouped[name];
+    const rowsHtml=ownerItems.map(r=>`
+      <div style="display:grid;grid-template-columns:90px 1fr 90px 120px 90px;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid rgba(143,178,227,.12);">
+        <div style="font-family:'JetBrains Mono',monospace;color:#8ccfff;">${escapeHtml(r['单号']||'—')}</div>
+        <div style="min-width:0;">
+          <div style="color:#eaf4ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r['job_name']||'—')}</div>
+          <div style="font-size:11px;color:#8eaace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r['part']||'—')}</div>
+        </div>
+        <div style="color:#d8edff;">${escapeHtml(r['location_name']||'—')}</div>
+        <div style="color:#ffcf66;">${escapeHtml(r._alertStatus||`领料超${threshold}小时未退料`)}</div>
+        <div style="color:#ff8a65;text-align:right;font-family:'JetBrains Mono',monospace;">${escapeHtml(r._overtimeHours||'超时')}</div>
+      </div>`).join('');
+    return `
+      <section style="border:1px solid rgba(90,163,255,.22);border-radius:14px;background:rgba(13,22,39,.72);overflow:hidden;margin-top:14px;box-shadow:0 10px 24px rgba(0,0,0,.18);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:linear-gradient(90deg,rgba(90,163,255,.16),rgba(0,212,170,.08));">
+          <div style="font-weight:700;color:#f3f8ff;">责任人：${escapeHtml(name)}</div>
+          <div style="font-size:12px;color:#67e8f9;border:1px solid rgba(103,232,249,.28);border-radius:999px;padding:3px 9px;background:rgba(103,232,249,.08);">${ownerItems.length} 条异常</div>
+        </div>
+        <div style="display:grid;grid-template-columns:90px 1fr 90px 120px 90px;gap:10px;padding:8px 12px;font-size:11px;color:#8eaace;background:rgba(255,255,255,.025);">
+          <div>单号</div><div>工单 / 料号</div><div>站别</div><div>异常类型</div><div style="text-align:right;">超时</div>
+        </div>
+        ${rowsHtml}
+      </section>`;
+  }).join('');
+
+  return `
+    <div style="font-family:'Noto Sans SC','Microsoft YaHei',sans-serif;color:#d8edff;">
+      <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px;">
+        <div>
+          <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:.02em;">维修异常预警推送预览</div>
+          <div style="margin-top:5px;font-size:12px;color:#8eaace;">生成时间：${escapeHtml(now)} · 目标通道：${escapeHtml(platform)}</div>
+        </div>
+        <div style="font-size:11px;color:${isDemo?'#00d4aa':'#ffcf66'};border:1px solid ${isDemo?'rgba(0,212,170,.35)':'rgba(255,207,102,.35)'};border-radius:999px;padding:5px 10px;background:${isDemo?'rgba(0,212,170,.10)':'rgba(255,207,102,.10)'};">${isDemo?'Demo 模式 · 仅预览':'真实推送模式'}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px;">
+        <div style="border:1px solid rgba(90,163,255,.22);border-radius:12px;background:rgba(90,163,255,.08);padding:12px;"><div style="font-size:11px;color:#8eaace;">责任人数</div><div style="font-size:24px;font-weight:800;color:#8ccfff;">${ownerNames.length}</div></div>
+        <div style="border:1px solid rgba(255,107,53,.26);border-radius:12px;background:rgba(255,107,53,.09);padding:12px;"><div style="font-size:11px;color:#8eaace;">异常总数</div><div style="font-size:24px;font-weight:800;color:#ff8a65;">${items.length}</div></div>
+        <div style="border:1px solid rgba(0,212,170,.24);border-radius:12px;background:rgba(0,212,170,.08);padding:12px;"><div style="font-size:11px;color:#8eaace;">报警阈值</div><div style="font-size:24px;font-weight:800;color:#00d4aa;">${escapeHtml(threshold)}h</div></div>
+      </div>
+      ${detailHtml || '<div style="padding:24px;text-align:center;color:#8eaace;border:1px dashed rgba(143,178,227,.24);border-radius:12px;">当前没有可预览的异常项</div>'}
+    </div>`;
+}
+
 /* ─ 推送 Teams（频道 Webhook，@提及 + EIP 跳转链接） ─ */
 async function sendTeamsAlert(){
   if(!_overtimeItems.length){toast('当前没有超时预警项','info');return;}
   const now=new Date().toLocaleString('zh-CN');
+  const threshold=safeGetLocalStorage('mro_alert_threshold_hours','3');
 
   // 按人分组
   const groupByUser={};
@@ -631,7 +755,7 @@ async function sendTeamsAlert(){
   }));
 
   // 构建消息正文（Markdown，Teams 频道 Webhook 支持）
-  let body=`## ⚠️ 领料超3小时未退料预警\n`;
+  let body=`## ⚠️ 领料超${threshold}小时未退料预警\n`;
   body+=`**共 ${_overtimeItems.length} 条** 超时未退料 &nbsp;·&nbsp; ${now}\n\n`;
 
   // @提及行
@@ -644,7 +768,7 @@ async function sendTeamsAlert(){
 
   body+=`---\n\n`;
 
-  // 按人输出明细，每条带 EIP 链接
+  // 按人输出明细
   Object.entries(groupByUser).forEach(([uname,items])=>{
     const email=getUserEmail(uname);
     const atMark=email?`<at>${uname}</at>`:`**${uname}**`;
@@ -658,23 +782,123 @@ async function sendTeamsAlert(){
     body+=`\n`;
   });
 
+  const formsLink = safeGetLocalStorage('mro_forms_link','');
+  if(formsLink){
+    body+=`---\n\n`;
+    body+=`🔗 [点击进行闭环反馈](${formsLink})\n`;
+  }
   const card={text:body, entities};
 
+  const isDemo = safeGetLocalStorage('mro_push_demo_mode','1') !== '0';
+  if(isDemo){
+    showPushPreview(body, 'Teams');
+    return true;
+  }
+
   try{
-    toast('正在推送 Teams...','info',8000);
-    const webhookUrl=localStorage.getItem('mro_teams_webhook')||'';
-    if(!webhookUrl){ toast('请先在⚙ 员工账号中填入 Teams Webhook URL','err',5000); return; }
-    // ★ 通过 background.js 发送（Teams Webhook 有 CORS 限制）
+    const webhookUrl=safeGetLocalStorage('mro_teams_webhook','');
+    if(!webhookUrl){
+      if(window._isManualPush) toast('请先在⚙️ 系统设置中配置 Teams Webhook URL','err',5000);
+      return false;
+    }
+
+    toast('正在推送 Teams...','info',3000);
     const j = await sendMsg({action:'sendTeams', url:webhookUrl, card});
     if(j.ok){
       const tip=mentionedUsers.length?` 已@${mentionedUsers.map(u=>u.name).join('、')}`:'（未配置账号，无@提及）';
-      toast(`✅ 已推送到频道${tip}`,'ok');
+      toast(`✅ 已推送到 Teams${tip}`,'ok');
+      return true;
     }else{
-      toast('推送失败：'+(j.error||'code='+j.status),'err',6000);
+      toast('Teams 推送失败：'+(j.error||'code='+j.status),'err',6000);
+      return false;
     }
   }catch(e){
-    toast('推送失败：'+e.message,'err',6000);
+    toast('Teams 推送失败：'+e.message,'err',6000);
+    return false;
   }
+}
+
+/* ─ 推送 企业微信（Robot Webhook） ─ */
+async function sendWeChatAlert(){
+  if(!_overtimeItems.length) return false;
+  const isDemo = safeGetLocalStorage('mro_push_demo_mode','1') !== '0';
+  if(isDemo){
+    showPushPreview('', '企业微信');
+    return true;
+  }
+  const webhookUrl=safeGetLocalStorage('mro_wechat_webhook','');
+  if(!webhookUrl){
+    if(window._isManualPush) toast('请先在⚙️ 系统设置中配置企业微信 Webhook URL','err',5000);
+    return false;
+  }
+
+  const threshold=safeGetLocalStorage('mro_alert_threshold_hours','3');
+  let text = `⚠️ 领料超${threshold}小时未退料预警\n`;
+  text += `共 ${_overtimeItems.length} 条超时项\n\n`;
+
+  _overtimeItems.slice(0, 15).forEach(r => {
+    text += `> ${r['create_user_name']||'—'}：${r['单号']||'—'} (${r._overtimeHours})\n`;
+  });
+
+  const formsLink = safeGetLocalStorage('mro_forms_link','');
+  if(formsLink) text += `\n🔗 反馈链接：${formsLink}`;
+
+  try {
+    toast('正在推送企业微信...','info',3000);
+    const j = await sendMsg({
+      action: 'sendWechat',
+      url: webhookUrl,
+      content: text
+    });
+    if(j.ok){
+      toast(`✅ 已推送到企业微信`,'ok');
+      return true;
+    } else {
+      toast('企业微信推送失败','err');
+      return false;
+    }
+  } catch(e) {
+    return false;
+  }
+}
+
+async function runAllPushes(isManual = false) {
+  window._isManualPush = isManual;
+  if(!_overtimeItems.length){
+    toast('当前没有超时预警项','info');
+    window._isManualPush = false;
+    return false;
+  }
+  const isDemo = safeGetLocalStorage('mro_push_demo_mode','1') !== '0';
+  if(isDemo){
+    showPushPreview('', 'Teams / 企业微信');
+    window._isManualPush = false;
+    return true;
+  }
+  const hasTeams=!!safeGetLocalStorage('mro_teams_webhook','').trim();
+  const hasWechat=!!safeGetLocalStorage('mro_wechat_webhook','').trim();
+  if(!hasTeams && !hasWechat){
+    toast('请先在⚙️ 系统设置中配置 Teams 或企业微信 Webhook URL','err',5000);
+    window._isManualPush = false;
+    return false;
+  }
+  const t = hasTeams ? await sendTeamsAlert() : false;
+  const w = hasWechat ? await sendWeChatAlert() : false;
+  window._isManualPush = false;
+  return !!(t||w);
+}
+
+function showPushPreview(content, platform){
+  const overlay = $('previewOverlay');
+  const body = $('previewContent');
+  if(!overlay || !body) return;
+  body.innerHTML = buildPushPreviewHtml(_overtimeItems, platform);
+  overlay.classList.add('open');
+  toast('Demo Mode：已生成推送内容，未真实发送', 'info');
+}
+function closePushPreview(){
+  const overlay = $('previewOverlay');
+  if(overlay) overlay.classList.remove('open');
 }
 
 /* ── Table ── */
@@ -756,11 +980,41 @@ function closeModal(){document.getElementById('modalOverlay').classList.remove('
 /* ═══════════════════════════════════════
    EXPORT
 ═══════════════════════════════════════ */
+function getExportData(){
+  let data=[];
+  try{ data=getTableData(); }catch(err){ console.warn('[export] getTableData failed, fallback to demo', err); }
+  if(data.length) return data;
+  if(Array.isArray(filteredData) && filteredData.length) return filteredData;
+  if(Array.isArray(allData) && allData.length) return allData;
+  if(typeof DEMO!=='undefined' && Array.isArray(DEMO) && DEMO.length){
+    allData=[...DEMO];
+    filteredData=[...DEMO];
+    try{ updateAll(); }catch(err){ console.warn('[export] demo update skipped', err); }
+    return [...DEMO];
+  }
+  return [];
+}
+
+function writeWorkbookDownload(wb, filename){
+  if(typeof XLSX==='undefined') return false;
+  try{
+    const payload=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    return downloadBlob(filename,payload,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }catch(err){
+    console.error('[export] XLSX write failed', err);
+    return false;
+  }
+}
+
 function exportExcel(){
-  const data=getTableData();if(!data.length){toast('没有可导出的数据','err');return;}
+  console.log('[export] start', 'excel');
+  const data=getExportData();
+  console.log('[export] rows:', data.length);
+  if(!data.length){toast('当前无可导出的数据，请先加载或查询数据。','err');alert('当前无可导出的数据，请先加载或查询数据。');return;}
   const raw0=data[0]._raw||{};const rawKeys=Object.keys(raw0);
   const hdr=['单号','领退类型','工单号','站别/工序','料号','品名规格','创建人','日期','操作人',...rawKeys];
   const rows=data.map(r=>[r['单号'],r['receive_return_type'],r['job_name'],r['location_name'],r['part'],r['part_name'],r['create_user_name'],r['create_date'],r['operator'],...rawKeys.map(k=>r._raw[k]??'')]);
+  const stamp=formatExportStamp();
 
   if(typeof XLSX!=='undefined'){
     const wb=XLSX.utils.book_new();
@@ -771,31 +1025,53 @@ function exportExcel(){
     const sum=[['站别','领料','退料','合计'],...sta.map(s=>[s,data.filter(r=>r['location_name']===s&&r['receive_return_type']==='领料').length,data.filter(r=>r['location_name']===s&&r['receive_return_type']==='退料').length,data.filter(r=>r['location_name']===s).length]),['合计',data.filter(r=>r['receive_return_type']==='领料').length,data.filter(r=>r['receive_return_type']==='退料').length,data.length]];
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),'按站别汇总');
     appendTop10Sheet(wb,data);
-    const now=new Date();
-    const fname=`维修领退料_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`;
-    XLSX.writeFile(wb,fname);
-    toast(`已导出 ${data.length} 条 → ${fname}`,'ok');
+    const fname=`领退料看板_筛选数据_${stamp}.xlsx`;
+    if(writeWorkbookDownload(wb,fname)){
+      toast(`已导出 ${data.length} 条 → ${fname}`,'ok');
+      return;
+    }
   } else {
-    const csvRows=[hdr,...rows].map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(','));
-    const blob=new Blob(['\uFEFF'+csvRows.join('\n')],{type:'text/csv;charset=utf-8'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    const now=new Date();
-    a.download=`维修领退料_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
-    a.click();URL.revokeObjectURL(a.href);
-    toast(`已导出 ${data.length} 条 CSV（可用 Excel 打开）`,'ok');
+    const fname=`领退料看板_筛选数据_${stamp}.csv`;
+    if(downloadCsv(fname,[hdr,...rows])){
+      toast(`Excel 导出依赖未加载，已导出 ${data.length} 条 CSV：${fname}`,'ok');
+    }
+  }
+  if(typeof XLSX!=='undefined'){
+    const fname=`领退料看板_筛选数据_${stamp}.csv`;
+    if(downloadCsv(fname,[hdr,...rows])){
+      toast(`XLSX 写入失败，已导出 ${data.length} 条 CSV：${fname}`,'ok');
+    }
   }
 }
 
 function exportTop10Excel(){
-  const data=filteredData;if(!data.length){toast('没有数据','err');return;}
+  console.log('[export] start', 'top10');
+  const data=getExportData();
+  console.log('[export] rows:', data.length);
+  if(!data.length){toast('当前无可导出的数据，请先加载或查询数据。','err');alert('当前无可导出的数据，请先加载或查询数据。');return;}
+  const stamp=formatExportStamp();
+  const rows=buildTop10Rows(data);
+  if(typeof XLSX==='undefined'){
+    const fname=`领退料TOP10_${stamp}.csv`;
+    if(downloadCsv(fname,rows)){
+      toast(`Excel 导出依赖未加载，已导出 CSV：${fname}`,'ok');
+    }
+    return;
+  }
   const wb=XLSX.utils.book_new();
   appendTop10Sheet(wb,data);
-  const now=new Date();
-  XLSX.writeFile(wb,`Top10分析_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`);
-  toast('Top10 已导出','ok');
+  const fname=`领退料TOP10_${stamp}.xlsx`;
+  if(writeWorkbookDownload(wb,fname)){
+    toast(`Top10 已导出：${fname}`,'ok');
+    return;
+  }
+  const fallback=`领退料TOP10_${stamp}.csv`;
+  if(downloadCsv(fallback,rows)){
+    toast(`XLSX 写入失败，已导出 CSV：${fallback}`,'ok');
+  }
 }
 
-function appendTop10Sheet(wb,data){
+function buildTop10Rows(data){
   const issues=data.filter(r=>r['receive_return_type']==='领料');
   const returns=data.filter(r=>r['receive_return_type']==='退料');
   const top10i=topN(issues,r=>r['part']);
@@ -803,32 +1079,46 @@ function appendTop10Sheet(wb,data){
   const top10p=topN(data,r=>r['part']);
   const top10w=topN(data,r=>r['job_name']);
   const maxLen=Math.max(top10i.length,top10r.length,top10p.length,top10w.length);
-  const hdr=['领料Top10料号','领料次数','','退料Top10料号','退料次数','','活跃料号Top10','合计次数','','工单Top10','单据数'];
-  const rows=[hdr];
+  const rows=[['领料Top10料号','领料次数','','退料Top10料号','退料次数','','活跃料号Top10','合计次数','','工单Top10','单据数']];
   for(let i=0;i<maxLen;i++){
     rows.push([
-      top10i[i]?top10i[i][0]:'',top10i[i]?top10i[i][1]:'','',
-      top10r[i]?top10r[i][0]:'',top10r[i]?top10r[i][1]:'','',
-      top10p[i]?top10p[i][0]:'',top10p[i]?top10p[i][1]:'','',
+      top10i[i]?top10i[i][0]:'',top10i[i]?top10i[i][1]:'',
+      '',
+      top10r[i]?top10r[i][0]:'',top10r[i]?top10r[i][1]:'',
+      '',
+      top10p[i]?top10p[i][0]:'',top10p[i]?top10p[i][1]:'',
+      '',
       top10w[i]?top10w[i][0]:'',top10w[i]?top10w[i][1]:'',
     ]);
   }
+  return rows;
+}
+
+function appendTop10Sheet(wb,data){
+  const rows=buildTop10Rows(data);
   const ws=XLSX.utils.aoa_to_sheet(rows);
   ws['!cols']=[22,8,4,22,8,4,22,8,4,22,8].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'Top10分析');
 }
 
 function exportAlertExcel(){
-  if(!_overtimeItems.length){toast('没有预警数据','err');return;}
+  if(!_overtimeItems.length){toast('当前无可导出的数据，请先加载或查询数据。','err');return;}
   const hdr=['单号','工单号','料号','品名规格','站别','创建人','创建日期','超时时长'];
   const rows=_overtimeItems.map(r=>[r['单号'],r['job_name'],r['part'],r['part_name'],r['location_name'],r['create_user_name'],r['create_date'],r._overtimeHours]);
+  const stamp=formatExportStamp();
+  if(typeof XLSX==='undefined'){
+    const fname=`领退料超时预警_${stamp}.csv`;
+    downloadCsv(fname,[hdr,...rows]);
+    toast(`Excel 导出依赖未加载，已导出 CSV：${fname}`,'ok');
+    return;
+  }
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.aoa_to_sheet([hdr,...rows]);
   ws['!cols']=[10,22,22,36,8,8,12,10].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'超时预警');
-  const now=new Date();
-  XLSX.writeFile(wb,`超时预警_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`);
-  toast(`已导出 ${_overtimeItems.length} 条预警`,'ok');
+  const fname=`领退料超时预警_${stamp}.xlsx`;
+  XLSX.writeFile(wb,fname);
+  toast(`已导出 ${_overtimeItems.length} 条预警：${fname}`,'ok');
 }
 
 /* ═══════════════════════════════════════
@@ -839,7 +1129,7 @@ let _pushTimer=null;
 let _lastPushTime=0;
 
 function loadPushCfg(){
-  try{return JSON.parse(localStorage.getItem(PUSH_CFG_KEY)||'{}');}catch(e){return {};}
+  return safeGetJsonLocalStorage(PUSH_CFG_KEY, {});
 }
 function savePushCfg(){
   const cfg={
@@ -847,7 +1137,7 @@ function savePushCfg(){
     interval:parseInt(document.getElementById('pushInterval').value),
     workHoursOnly:document.getElementById('workHoursOnly').checked,
   };
-  try{localStorage.setItem(PUSH_CFG_KEY,JSON.stringify(cfg));}catch(e){}
+  safeSetLocalStorage(PUSH_CFG_KEY, JSON.stringify(cfg));
   document.getElementById('autoPushLabel').textContent=cfg.enabled?'已开启':'已关闭';
   restartPushTimer(cfg);
   updateNextPushInfo(cfg);
@@ -920,9 +1210,11 @@ let _nextRefreshAt    = 0;
 
 function setAutoRefresh(){
   if(_autoRefreshTimer){ clearInterval(_autoRefreshTimer); _autoRefreshTimer = null; }
-  const m = parseInt(document.getElementById('autoRefreshInterval').value);
+  const intervalEl=document.getElementById('autoRefreshInterval');
+  const m = parseInt(intervalEl?.value || '0', 10);
+  safeSetLocalStorage('mro_auto_refresh_interval', String(m || 0));
   const el = document.getElementById('nextRefreshInfo');
-  if(!m){ el.textContent = ''; return; }
+  if(!m){ if(el) el.textContent = ''; return; }
   const ms = m * 60000;
   _nextRefreshAt = Date.now() + ms;
   _autoRefreshTimer = setInterval(async()=>{
@@ -930,14 +1222,14 @@ function setAutoRefresh(){
     await fetchData(true);
   }, ms);
   const h = new Date(_nextRefreshAt);
-  el.textContent = `下次：${h.getHours().toString().padStart(2,'0')}:${h.getMinutes().toString().padStart(2,'0')}`;
+  if(el) el.textContent = `下次：${h.getHours().toString().padStart(2,'0')}:${h.getMinutes().toString().padStart(2,'0')}`;
 }
 setInterval(()=>{
   if(!_autoRefreshTimer || !_nextRefreshAt) return;
   const left = Math.max(0, Math.ceil((_nextRefreshAt - Date.now()) / 1000));
   const mm = Math.floor(left/60), ss = left%60;
-  document.getElementById('nextRefreshInfo').textContent =
-    `下次：${mm}:${ss.toString().padStart(2,'0')}`;
+  const el=document.getElementById('nextRefreshInfo');
+  if(el) el.textContent = `下次：${mm}:${ss.toString().padStart(2,'0')}`;
 }, 1000);
 
 function initDateDefaults(){
@@ -965,11 +1257,19 @@ function resetFilters(){
    EVENT LISTENER BINDINGS (MV3 CSP 合规)
    MV3 不允许 inline onclick/onchange，全部改用 addEventListener
 ═══════════════════════════════════════ */
-function bindEvents(){
-  const $=id=>document.getElementById(id);
+window.openSettingsPanel = openCfg;
+window.closeSettingsPanel = closeCfg;
+window.saveSettings = cfgSave;
+window.openCfg = openCfg;
+window.closeCfg = closeCfg;
+window.cfgSave = cfgSave;
+window.exportExcel = exportExcel;
+window.exportTop10 = exportTop10Excel;
+window.exportTop10Excel = exportTop10Excel;
 
+function bindEvents(){
   // ── Header & Status bar ──
-  $('btnOpenCfg')?.addEventListener('click', openCfg);
+  document.getElementById('btnOpenCfg')?.addEventListener('click', openSystemSettings);
   $('autoRefreshInterval')?.addEventListener('change', setAutoRefresh);
   $('btnRefreshAll')?.addEventListener('click', ()=>fetchData(true));
   $('btnManualRefresh')?.addEventListener('click', async()=>{
@@ -988,7 +1288,7 @@ function bindEvents(){
 
   // ── Alert panel ──
   $('btnPushCfg')?.addEventListener('click', openPushCfg);
-  $('btnSendTeams')?.addEventListener('click', sendTeamsAlert);
+  $('btnSendTeams')?.addEventListener('click', () => runAllPushes(true));
   $('btnExportAlert')?.addEventListener('click', exportAlertExcel);
 
   // ── Filter bar ──
@@ -1021,21 +1321,37 @@ function bindEvents(){
   $('pushInterval')?.addEventListener('change', savePushCfg);
   $('workHoursOnly')?.addEventListener('change', savePushCfg);
   $('btnClosePushCfg')?.addEventListener('click', closePushCfg);
-  $('btnPushNow')?.addEventListener('click', ()=>{ sendTeamsAlert(); closePushCfg(); });
+  $('btnPushNow')?.addEventListener('click', ()=>{ runAllPushes(true); closePushCfg(); });
 
   // ── Employee config modal ──
   $('cfgOverlay')?.addEventListener('click', e=>{ if(e.target===$('cfgOverlay')) closeCfg(); });
   $('btnCloseCfgX')?.addEventListener('click', closeCfg);
-  $('cfgWebhookInput')?.addEventListener('input', function(){ localStorage.setItem('mro_teams_webhook', this.value); });
+  $('cfgWebhookInput')?.addEventListener('input', function(){ safeSetLocalStorage('mro_teams_webhook', this.value); });
+  $('cfgWechatInput')?.addEventListener('input', function(){ safeSetLocalStorage('mro_wechat_webhook', this.value); });
+  $('cfgFormsInput')?.addEventListener('input', function(){ safeSetLocalStorage('mro_forms_link', this.value); });
+  $('cfgDemoMode')?.addEventListener('change', function(){ safeSetLocalStorage('mro_push_demo_mode', this.checked ? '1' : '0'); });
+  $('cfgAlertThresholdHours')?.addEventListener('change', function(){ safeSetLocalStorage('mro_alert_threshold_hours', String(Math.max(1, Number(this.value) || 3))); checkOvertimeAndRender(); });
   $('btnCfgAdd')?.addEventListener('click', cfgAddRow);
   $('btnCloseCfg')?.addEventListener('click', closeCfg);
   $('btnCfgSave')?.addEventListener('click', cfgSave);
+
+  // ── Preview modal ──
+  $('previewOverlay')?.addEventListener('click', e=>{ if(e.target===$('previewOverlay')) closePushPreview(); });
+  $('btnClosePreview')?.addEventListener('click', closePushPreview);
+  $('btnClosePreviewX')?.addEventListener('click', closePushPreview);
 }
 
 window.addEventListener('DOMContentLoaded', async()=>{
+  if(safeGetLocalStorage('mro_push_demo_mode', null) === null) {
+    safeSetLocalStorage('mro_push_demo_mode', '1');
+  }
+  const savedAutoRefresh=safeGetLocalStorage('mro_auto_refresh_interval', null);
+  if(savedAutoRefresh !== null && $('autoRefreshInterval')){
+    $('autoRefreshInterval').value=savedAutoRefresh;
+  }
   bindEvents();
   initDateDefaults();
-  // 确保 Chart.js / XLSX 已加载（本地文件为占位符时从 CDN 拉取）
+  // 确认 XLSX 是否已加载；缺失时导出会自动降级为 CSV。
   await _ensureLibs();
   // 直接加载数据（扩展会自动使用浏览器中的 EIP cookie）
   await fetchData(true);
