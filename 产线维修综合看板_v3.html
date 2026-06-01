@@ -1295,44 +1295,111 @@
     </div>
   </div>
 
-  <!-- ══ AI ANALYSIS MODAL ══ -->
+  <!-- ══ AI ANALYSIS / CHAT MODAL ══ -->
   <div class="modal-mask" id="aiMask">
-    <div class="modal" style="width:min(600px,90vw);">
-      <h3 style="color:var(--cyan);display:flex;align-items:center;gap:10px;">✨ Gemma 4 维修数据智能分析 <span style="font-size:10px;background:rgba(0,220,255,.1);padding:2px 6px;border-radius:4px;color:var(--cyan);">DEMO</span></h3>
-      <div id="aiLoading" style="display:none;padding:20px;text-align:center;">
-        <div class="loading-spinner" style="border:3px solid rgba(0,220,255,.1);border-top:3px solid var(--cyan);border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto 10px;"></div>
-        <p style="color:var(--sub);">Gemma 4 正在深入分析数据...</p>
+    <div class="modal" style="width:min(640px,92vw);display:flex;flex-direction:column;max-height:88vh;">
+      <h3 style="color:var(--cyan);display:flex;align-items:center;gap:10px;">✨ Gemma 4 维修智能助手 <span style="font-size:10px;background:rgba(0,220,255,.1);padding:2px 6px;border-radius:4px;color:var(--cyan);">DEMO · 对话式</span></h3>
+      <div id="aiResult" class="ai-content-area" style="flex:1;padding:10px;line-height:1.6;color:var(--text);font-size:13px;min-height:200px;max-height:56vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
       </div>
-      <div id="aiResult" class="ai-content-area" style="padding:10px;line-height:1.6;color:var(--text);font-size:13px;max-height:60vh;overflow-y:auto;white-space:pre-wrap;">
+      <div id="aiLoading" style="display:none;padding:8px 10px;color:var(--sub);font-size:12px;">
+        <span class="loading-spinner" style="display:inline-block;vertical-align:middle;border:2px solid rgba(0,220,255,.1);border-top:2px solid var(--cyan);border-radius:50%;width:14px;height:14px;animation:spin 1s linear infinite;margin-right:8px;"></span>Gemma 4 正在思考...
+      </div>
+      <div id="aiChips" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px 4px;">
+        <button class="ai-chip" data-q="近期维修趋势如何？">维修趋势</button>
+        <button class="ai-chip" data-q="今天出勤情况怎么样？">出勤情况</button>
+        <button class="ai-chip" data-q="今日产出谁最高？">产出TOP</button>
+        <button class="ai-chip" data-q="当前WIP高不高？">WIP分析</button>
+        <button class="ai-chip" data-q="有什么排班建议？">排班建议</button>
+      </div>
+      <div style="display:flex;gap:8px;padding:6px 10px 4px;">
+        <input id="aiChatInput" type="text" placeholder="追问看板数据，如「维修二组出勤怎么样」"
+          style="flex:1;background:rgba(0,20,40,.6);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 12px;font-size:13px;outline:none;" />
+        <button class="btn btn-green" id="btnAISend">发送</button>
       </div>
       <div class="modal-actions">
         <button class="btn" id="btnAIClose">关闭</button>
-        <button class="btn btn-green" id="btnAIRefresh">重新生成分析</button>
+        <button class="btn" id="btnAIRefresh">重新生成分析</button>
       </div>
     </div>
   </div>
 
   <style>
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .ai-content-area h3 { color: var(--cyan); margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+    .ai-content-area h3 { color: var(--cyan); margin-top: 6px; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
     .ai-content-area strong { color: var(--green); }
     #aiMask.show { display: flex; opacity: 1; }
+    .ai-msg { padding:10px 12px; border-radius:10px; max-width:90%; white-space:pre-wrap; word-break:break-word; }
+    .ai-msg.ai { align-self:flex-start; background:rgba(0,220,255,.07); border:1px solid var(--border); border-top-left-radius:2px; }
+    .ai-msg.user { align-self:flex-end; background:rgba(0,255,136,.10); border:1px solid rgba(0,255,136,.25); color:var(--white); border-top-right-radius:2px; }
+    .ai-chip { background:rgba(0,220,255,.06); border:1px solid var(--border); color:var(--cyan); font-size:11px; padding:4px 10px; border-radius:14px; cursor:pointer; transition:all .15s; }
+    .ai-chip:hover { background:rgba(0,220,255,.16); border-color:var(--cyan); }
+    .agent-trace { align-self:flex-start; max-width:92%; background:rgba(5,16,30,.7); border:1px dashed rgba(0,220,255,.28); border-radius:8px; padding:8px 10px; font-family:'JetBrains Mono','Consolas',monospace; }
+    .trace-head { color:var(--cyan); font-size:11px; font-weight:600; letter-spacing:.5px; margin-bottom:6px; opacity:.9; }
+    .trace-step { font-size:11px; color:var(--sub); padding:2px 0; opacity:0; animation:traceIn .35s ease-out forwards; }
+    .trace-tool { color:var(--green); }
+    .trace-arrow { color:var(--cyan); opacity:.7; }
+    .trace-sum { color:var(--text); }
+    @keyframes traceIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
   </style>
 
   <script>
+    function aiRenderMd(text) {
+      return String(text)
+        .replace(/### (.*)/g, '<h3>$1</h3>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    }
+    function aiEsc(s) { return String(s).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+    function aiFmtArgs(args) { return Object.entries(args || {}).map(([k, v]) => `${k}=${v}`).join(', '); }
+    function aiAppendMsg(text, who) {
+      const result = document.getElementById('aiResult');
+      const div = document.createElement('div');
+      div.className = 'ai-msg ' + (who === 'user' ? 'user' : 'ai');
+      div.innerHTML = who === 'user' ? aiEsc(text) : aiRenderMd(text);
+      result.appendChild(div);
+      result.scrollTop = result.scrollHeight;
+    }
+    function aiAppendAgent(result) {
+      const res = (result && typeof result === 'object' && 'text' in result) ? result : { text: String(result), trace: [] };
+      const area = document.getElementById('aiResult');
+      if (res.trace && res.trace.length) {
+        const wrap = document.createElement('div');
+        wrap.className = 'agent-trace';
+        wrap.innerHTML = `<div class="trace-head">🛠 Agent 工具调用 · ${res.trace.length} 步</div>` +
+          res.trace.map((s, i) => `<div class="trace-step" style="animation-delay:${(i * 0.12).toFixed(2)}s"><span class="trace-tool">${aiEsc(s.tool)}(${aiEsc(aiFmtArgs(s.args))})</span> <span class="trace-arrow">→</span> <span class="trace-sum">${aiEsc(s.summary)}</span></div>`).join('');
+        area.appendChild(wrap);
+        area.scrollTop = area.scrollHeight;
+      }
+      aiAppendMsg(res.text, 'ai');
+    }
     async function runGemmaAnalysis() {
       const mask = document.getElementById('aiMask');
       const loading = document.getElementById('aiLoading');
       const result = document.getElementById('aiResult');
       mask.classList.add('show');
-      loading.style.display = 'block';
       result.innerHTML = '';
+      loading.style.display = 'block';
       try {
-        const report = await window.GemmaAdapter.analyze('integrated', window.state);
-        const htmlReport = report.replace(/### (.*)/g, '<h3>$1</h3>').replace(/\*\* (.*)\*\*/g, '<strong>$1</strong>');
-        result.innerHTML = htmlReport;
+        const report = await window.GemmaAdapter.analyze('integrated', state);
+        aiAppendAgent(report);
       } catch (e) {
-        result.innerHTML = `<p style="color:var(--red);">分析失败: ${e.message}</p>`;
+        aiAppendMsg(`分析失败: ${e.message}`, 'ai');
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+    async function aiSendChat(presetQ) {
+      const input = document.getElementById('aiChatInput');
+      const loading = document.getElementById('aiLoading');
+      const q = (presetQ != null ? presetQ : input.value).trim();
+      if (!q) return;
+      input.value = '';
+      aiAppendMsg(q, 'user');
+      loading.style.display = 'block';
+      try {
+        const answer = await window.GemmaAdapter.chat('integrated', q, state);
+        aiAppendAgent(answer);
+      } catch (e) {
+        aiAppendMsg('抱歉，回答失败了，请重试。', 'ai');
       } finally {
         loading.style.display = 'none';
       }
@@ -1563,7 +1630,7 @@
 
     // ══ CORE STATE & LOGIC (PRESERVED FROM ORIGINAL) ══
 
-    const STORAGE_KEY = 'mes_dashboard_unified_v1';  // 版本升级，强制清除旧缓存
+    const STORAGE_KEY = 'mes_dashboard_unified_v2_demo';  // 版本升级，强制清除旧缓存（含历史真实数据）
     const SHARED_REPAIR_HANDLE_KEY = '__shared_repair_report__';
 
     const defaultState = {
@@ -2397,6 +2464,9 @@
       document.getElementById('btnAIAnalyze').addEventListener('click', runGemmaAnalysis);
       document.getElementById('btnAIClose').addEventListener('click', () => document.getElementById('aiMask').classList.remove('show'));
       document.getElementById('btnAIRefresh').addEventListener('click', runGemmaAnalysis);
+      document.getElementById('btnAISend').addEventListener('click', () => aiSendChat());
+      document.getElementById('aiChatInput').addEventListener('keydown', e => { if (e.key === 'Enter') aiSendChat(); });
+      document.querySelectorAll('#aiChips .ai-chip').forEach(c => c.addEventListener('click', () => aiSendChat(c.dataset.q)));
 
     init();
   </script>

@@ -4,9 +4,17 @@ logs/
 
 # Sensitive info
 .env
+backend/.env
 *.bak
 *.tmp
 config_local.json
+
+# Python backend
+__pycache__/
+*.pyc
+backend/output/
+backend/venv/
+.venv/
 
 # Dependencies
 node_modules/
