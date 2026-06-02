@@ -24,12 +24,21 @@
 
 ## Gemma 说明
 
-当前版本是 Gemma AI 分析演示适配层：
+本项目提供两种运行方式：
 
-- `gemma_config.js` 保存 Demo 级模型配置和占位说明。
-- `gemma_adapter.js` 用于模拟/封装 AI 分析输出。
-- 当前代码默认不真实调用 Gemma API。
-- 后续可在安全环境中接入真实 Gemma API、本地模型服务或企业内网 AI 服务。
+**1. 前端 Demo 模式（默认）**
+
+- `gemma_config.js` 保存模型配置（`modelId: gemma-4-31b-it`）和 `demoMode` 开关，默认 `demoMode: true`。
+- `gemma_adapter.js` 用于模拟/封装 AI 分析输出，离线即可演示。
+- Demo 模式下不真实调用任何外部 AI 服务，不发送生产数据。
+
+**2. 真实 Gemma 4 后端模式（可选）**
+
+- `backend/` 提供一个精简的 Flask 后端，通过 `google-genai` SDK 真实调用 **Gemma 4（`gemma-4-31b-it`）**。
+- 后端将 `backend/skills/repair-report/SKILL.md` 注入为分析 Prompt，生成日报 / 周报 / 异常预警等管理汇报。
+- 在 `backend/.env`（参考 `backend/.env.example`）填入自己的 `GOOGLE_API_KEY` 后即可启用，密钥不会进入仓库。
+- 将 `gemma_config.js` 中的 `demoMode` 改为 `false`，前端即对接本地后端 `http://127.0.0.1:8000`。
+- 详细启动步骤见 `backend/README.md`。
 
 ## 如何运行
 
@@ -51,18 +60,24 @@
 
 ## 当前 Gemma 4 集成状态
 
-当前版本为前端 Demo 适配层，可后续接入 Gemma 4 / Gemini API 或本地模型服务。为了公开参赛仓库安全，当前代码不包含真实 API Key，也不会默认向外部 AI 服务发送生产数据。
+仓库已包含一个可真实调用 **Gemma 4（`gemma-4-31b-it`）** 的精简后端（见 `backend/`），默认前端仍以 Demo 模式离线演示。为了公开参赛仓库安全，仓库不包含真实 API Key（使用 `.env.example` 占位），也不会默认向外部 AI 服务发送生产数据；启用真实后端需自行在本地 `.env` 配置 `GOOGLE_API_KEY`。
 
 ## 目录结构
 
 ```text
 gemma4-repair-dashboard/
+├─ backend/                      # 真实 Gemma 4 后端（可选）
+│  ├─ report_server.py           # Flask 服务，调用 gemma-4-31b-it
+│  ├─ requirements.txt           # 后端依赖
+│  ├─ .env.example               # API Key 占位（自行复制为 .env）
+│  ├─ README.md                  # 后端启动说明
+│  └─ skills/repair-report/SKILL.md  # 注入为分析 Prompt 的汇报技能
 ├─ data/                         # 脱敏演示数据
 ├─ icons/                        # 图标资源
 ├─ libs/                         # 本地离线依赖，例如 xlsx.full.min.js
 ├─ index.html                    # 参赛 Demo 首页
 ├─ README.md                     # 项目说明
-├─ gemma_config.js               # Gemma Demo 配置
+├─ gemma_config.js               # Gemma 模型配置（gemma-4-31b-it / demoMode）
 ├─ gemma_adapter.js              # Gemma AI 分析演示适配层
 ├─ material_dashboard.js         # 领退料看板脚本
 ├─ 产线维修综合看板_v3.html       # 产线维修综合看板
