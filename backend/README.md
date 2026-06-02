@@ -24,6 +24,28 @@ response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
 技能（`skills/repair-report/SKILL.md`）以 **Markdown Skill** 的形式定义分析规则，
 作为 prompt 文本注入，模型据此生成结构化的维修管理汇报。
 
+## 与生产环境的技术取舍
+
+生产环境中，原系统采用 **Google ADK（Agent Development Kit）** 的 Agent + 工具调用模式：
+
+```python
+from google.adk import Agent
+from google.adk.tools import skill_toolset
+
+root_agent = Agent(
+    model="gemini-2.5-pro",
+    tools=[skill_toolset.SkillToolset(skills=[repair_skill])],  # 依赖 function calling
+)
+```
+
+但 **Gemma 4 是开放权重模型，在 Gemini API 上只支持 `generateContent` 纯文本生成，
+不支持 `tools=`（function calling）与 `system_instruction=`**。因此无法把 ADK Agent 的
+`model` 直接换成 `gemma-4-31b-it`。
+
+本参赛后端据此做了 Gemma 合规的等价实现：**用 prompt 注入替代工具调用**——
+把同一份 `SKILL.md` 规则整段拼进 prompt，由 `generate_content` 一次生成结构化报告。
+功能上等价于"Skill 驱动的维修分析"，同时完全符合 Gemma 4 的接口约束。
+
 ## 快速开始
 
 ```bash
