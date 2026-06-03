@@ -441,11 +441,11 @@
         </div>
     </div>
 
-    <script src="gemma_config.js"></script>
+    <script src="gemma_config.js?v=20260603"></script>
     <script>
     (function () {
         const cfg = window.RDC_AI_CONFIG || {};
-        const backendBase = (cfg.backendBaseUrl || "http://127.0.0.1:8000").replace(/\/+$/, "");
+        const backendBase = (cfg.backendBaseUrl || "http://127.0.0.1:8001").replace(/\/+$/, "");
         const mask = document.getElementById("aiModalMask");
         const statusEl = document.getElementById("aiStatus");
         const traceWrap = document.getElementById("aiTraceWrap");

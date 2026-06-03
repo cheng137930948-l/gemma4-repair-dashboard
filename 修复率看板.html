@@ -1306,6 +1306,11 @@
     /* WIP 图自动填满中间剩余空间 */
     .wip-card {
       flex: 1;
+      /* 关键：本卡片 overflow:hidden，会让 flex 项的“自动最小高度”坍缩为 0。
+         窗口偏矮时（笔记本约 <880px 可视高度），卡片被压扁、canvas 被裁成一条，
+         只能看到图例和顶端——这就是“图表太小看不到”的根因。
+         用 min-height 兜底：保证趋势图始终有可用高度，空间不够则整页滚动。 */
+      min-height: 300px;
       margin-bottom: 0 !important;
       display: flex;
       flex-direction: column;

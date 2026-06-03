@@ -60,8 +60,10 @@ cp .env.example .env
 # 编辑 .env，填入在 https://aistudio.google.com/apikey 申请的 GOOGLE_API_KEY
 
 python report_server.py
-# -> http://127.0.0.1:8000
+# -> http://127.0.0.1:8001  （端口由 .env 的 PORT 决定，默认 8001）
 ```
+
+> 💡 想一键起【后端+前端】，见仓库根的 `start.sh`（本地）或 `docker compose up`（Docker）。
 
 ## 接口
 

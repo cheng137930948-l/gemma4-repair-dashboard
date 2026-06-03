@@ -9,6 +9,6 @@ window.RDC_AI_CONFIG = {
   demoMode: true, // 开启演示模式，不请求真实接口；改为 false 走 backend 真实 Gemma 4
   apiKey: "GEMMA_API_KEY_PLACEHOLDER", // 占位符，不存放真实 Key
   apiVersion: "v1beta",
-  backendBaseUrl: "http://127.0.0.1:8000", // 精简后端地址（demoMode=false 时生效）
+  backendBaseUrl: "http://127.0.0.1:8001", // 精简后端地址（本机 8000 常被占用，改用 8001；与 backend/.env 的 PORT 一致）
   endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemma-4-26b-a4b-it:generateContent"
 };

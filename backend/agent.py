@@ -16,6 +16,7 @@ Gemma 4 维修看板 - 原生函数调用循环 (Agent Loop)
 
 from __future__ import annotations
 import json
+import os
 import re
 import time
 from datetime import datetime
@@ -25,12 +26,23 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from tools import build_toolset
 
 # Gemma 4 接口偶发返回 5xx INTERNAL（瞬时抖动），做有限次重试。
-# 录制演示对时延敏感，这里收敛重试：最多 2 次、退避 1s，避免一次抖动把整次分析拖到分钟级。
-_RETRY_ATTEMPTS = 2
+# 录制演示对时延敏感，这里收敛重试：退避 1s，避免一次抖动把整次分析拖到分钟级。
+# 末轮“生成最终长报告”的请求体最大、输出最长，最易被上游临时断开（Server disconnected），
+# 故重试上限给到 3，并把“连接被断开/重置”一类也并入可重试集合（见 _generate）。
+_RETRY_ATTEMPTS = 3
 _RETRY_BACKOFF = 1.0
 
 # 整个函数调用循环的总时长预算（秒）。超过后强制用已取到的数据收尾，保证演示时延可控。
-RUN_BUDGET_SEC = float(__import__("os").getenv("RUN_BUDGET_SEC", "70"))
+# 必须在“调用时”读取：模块导入早于 report_server / warm_cache 的 load_dotenv，
+# 若在导入期读取，.env 里的 RUN_BUDGET_SEC 覆盖值会被忽略，永远拿到默认 70。
+_DEFAULT_RUN_BUDGET_SEC = 70.0
+
+
+def _run_budget_sec() -> float:
+    try:
+        return float(os.getenv("RUN_BUDGET_SEC", _DEFAULT_RUN_BUDGET_SEC))
+    except (TypeError, ValueError):
+        return _DEFAULT_RUN_BUDGET_SEC
 
 
 def _generate(client, model_name: str, contents):
@@ -45,7 +57,12 @@ def _generate(client, model_name: str, contents):
             transient = ("500" in msg or "INTERNAL" in msg or "503" in msg
                          or "504" in msg or "UNAVAILABLE" in msg
                          or "DEADLINE" in msg or "deadline" in lo
-                         or "overloaded" in lo or "timeout" in lo or "timed out" in lo)
+                         or "overloaded" in lo or "timeout" in lo or "timed out" in lo
+                         # 上游在长生成时临时断开连接 / 重置，也按可重试处理
+                         or "disconnect" in lo or "connection" in lo
+                         or "remoteprotocol" in lo or "incompleteread" in lo
+                         or "reset by peer" in lo or "broken pipe" in lo
+                         or "econnreset" in lo)
             last_exc = exc
             if not transient or attempt == _RETRY_ATTEMPTS - 1:
                 raise
@@ -210,6 +227,7 @@ def run_agent(client, model_name: str, skill_text: str, board: str, data: Any,
                             f"model={model_name} board={board} max_turns={max_turns}", ""]
     final_text = ""
     start_ts = time.monotonic()
+    run_budget_sec = _run_budget_sec()
     budget_hit = False
 
     def _flush_log():
@@ -221,9 +239,9 @@ def run_agent(client, model_name: str, skill_text: str, board: str, data: Any,
 
     for turn in range(1, max_turns + 1):
         # 总时长预算：已取过数据又超时，则停止继续取数，进入强制收尾
-        if trace and (time.monotonic() - start_ts) > RUN_BUDGET_SEC:
+        if trace and (time.monotonic() - start_ts) > run_budget_sec:
             budget_hit = True
-            log_lines.append(f"[turn {turn}] BUDGET HIT ({RUN_BUDGET_SEC}s)，强制收尾")
+            log_lines.append(f"[turn {turn}] BUDGET HIT ({run_budget_sec}s)，强制收尾")
             _flush_log()
             break
         resp = _generate(client, model_name, contents)

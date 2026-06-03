@@ -39,16 +39,38 @@
 - `backend/` 提供一个精简 Flask 后端，通过 `google-genai` SDK 真实调用 **Gemma 4（`gemma-4-26b-a4b-it`）**。
 - 后端实现了 **Gemma 4 原生函数调用循环**（`backend/agent.py` + `backend/tools.py`）：把 `SKILL.md` 与工具清单注入 prompt，由模型自主输出 ```` ```tool_code ````、后端真实执行 Python 工具并以 ```` ```tool_output ```` 回灌，多轮循环直至生成最终汇报；每一步工具调用都记录在 `trace` 并落盘为 `backend/output/agent_run_*.log` 运行日志。
 - 在 `backend/.env`（参考 `backend/.env.example`）填入自己的 `GOOGLE_API_KEY` 后即可启用，密钥不会进入仓库。
-- 将 `gemma_config.js` 中的 `demoMode` 改为 `false`，前端即对接本地后端 `http://127.0.0.1:8000`。
-- 详细启动步骤见 `backend/README.md`。
+- 首页「**AI 智能分析中心**」会直接请求本地后端 `http://127.0.0.1:8001`（与 `backend/.env` 的 `PORT` 一致），**无需改任何开关**即可出真实 Gemma 4 报告；各看板页面内嵌的离线模拟由 `gemma_config.js` 的 `demoMode` 控制（默认 `true`）。
+- 一键启动见下方「如何运行 → 一键启动」；详细后端说明见 `backend/README.md`。
 
 ## 如何运行
 
-### 本地运行
+### 一键启动（真实 Gemma 4，推荐）
+
+同时拉起【后端 `:8001` + 前端 `:8123`】，打开页面点「开始分析」即走真实 Gemma 4 原生函数调用循环。
+
+**方式 A · 本地脚本**（自动建 venv、装依赖、起前后端）：
+
+```bash
+./start.sh
+# 首次会生成 backend/.env —— 填入 GOOGLE_API_KEY（https://aistudio.google.com/apikey）后重跑
+# 启动后打开 http://127.0.0.1:8123/index.html
+```
+
+**方式 B · Docker**（一条命令）：
+
+```bash
+GOOGLE_API_KEY=你的Key docker compose up
+# 或在本目录建 .env 写 GOOGLE_API_KEY=...，再 docker compose up
+# 启动后打开 http://127.0.0.1:8123/index.html
+```
+
+> 时延提示：单次真实报告约 40–95s（模型多轮取数推理）。若要现场零等待，先 `cd backend && python warm_cache.py` 预热，再在 `backend/.env` 设 `REPLAY_ONLY=1` 重启后端，即可秒回真实跑批缓存。详见 `backend/README.md`。
+
+### 本地运行（纯前端离线，零配置）
 
 1. 下载或克隆本仓库。
-2. 双击打开根目录下的 `index.html`。
-3. 在首页点击三个核心入口分别进入综合看板、领退料看板、修复率看板。
+2. 双击打开根目录下的 `index.html`（或 `python -m http.server 8123` 后访问 `http://127.0.0.1:8123/index.html`）。
+3. 在首页点击三个核心入口分别进入综合看板、领退料看板、修复率看板。（此模式 AI 为离线模拟；要真实 Gemma 4 用上面的「一键启动」。）
 
 > 若使用 Excel 导入/导出等需要相对路径加载本地依赖的功能，建议用静态服务器打开，例如：
 > `python -m http.server 8123` 后访问 `http://127.0.0.1:8123/index.html`。

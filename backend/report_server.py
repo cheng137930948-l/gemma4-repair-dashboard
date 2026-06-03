@@ -355,7 +355,10 @@ def ask_repair():
 
 
 if __name__ == "__main__":
+    # 端口可经 .env 的 PORT 覆盖（默认 8000）。本机 8000 若被其它程序占用，
+    # 在 .env 里设 PORT=8001 即可，无需改代码。
+    PORT = int(os.environ.get("PORT", "8000"))
     print(f"[Gemma4 Demo Backend] model={MODEL_NAME}  key={'已配置' if GOOGLE_API_KEY else '未配置'}")
     print(f"[Gemma4 Demo Backend] skill={'已加载' if SKILL_PATH.exists() else '缺失'}  函数调用循环=on(max_turns={DEFAULT_MAX_TURNS})")
-    print(f"[Gemma4 Demo Backend] -> http://127.0.0.1:8000")
-    app.run(host="127.0.0.1", port=8000, debug=False)
+    print(f"[Gemma4 Demo Backend] -> http://127.0.0.1:{PORT}")
+    app.run(host="127.0.0.1", port=PORT, debug=False)

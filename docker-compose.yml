@@ -1,0 +1,33 @@
+# 一键起【后端 :8001 + 前端静态 :8123】。
+#
+# 用法（二选一）：
+#   1) GOOGLE_API_KEY=你的Key docker compose up
+#   2) 在本目录建 .env 写一行 GOOGLE_API_KEY=你的Key，然后 docker compose up
+# 启动后访问： http://127.0.0.1:8123/index.html
+#   → AI 智能分析中心点「开始分析」即走真实 Gemma 4 原生函数调用循环（后端 :8001）。
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8001:8001"
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:?请先设置 GOOGLE_API_KEY（环境变量或本目录 .env）}
+      MODEL_NAME: gemma-4-26b-a4b-it
+      PORT: "8001"
+      CALL_TIMEOUT_MS: "120000"
+      RUN_BUDGET_SEC: "150"
+      REPLAY_ONLY: "0"
+    restart: unless-stopped
+
+  frontend:
+    image: python:3.12-slim
+    working_dir: /site
+    volumes:
+      - ./:/site:ro
+    ports:
+      - "8123:8123"
+    command: ["python", "-m", "http.server", "8123"]
+    depends_on:
+      - backend
+    restart: unless-stopped

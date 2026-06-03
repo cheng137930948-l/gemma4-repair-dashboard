@@ -1,0 +1,8 @@
+# 绝不进镜像：本地密钥、虚拟环境、运行产物
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+output/
+*.log
