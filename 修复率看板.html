@@ -1,0 +1,4176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASH · Digital Twin Repair Monitor</title>
+<style>
+    /* ═══════════════════════════════════════════════════
+   DIGITAL TWIN — CYBERPUNK GLASSMORPHISM
+   Palette: Cyan · Ice-Blue · Magenta · Lime
+═══════════════════════════════════════════════════ */
+    :root {
+      /* 主色 */
+      --c: #00f0ff;
+      /* cyan */
+      --c2: #7df9ff;
+      /* ice blue */
+      --m: #ff2df7;
+      /* magenta */
+      --lime: #b8ff00;
+      /* lime */
+      --pur: #6b21ff;
+      /* deep purple */
+
+      /* 背景 */
+      --bg1: #020818;
+      --bg2: #050d24;
+      --bg3: #0a0f35;
+
+      /* 玻璃 */
+      --gls: rgba(0, 240, 255, 0.04);
+      --glsb: rgba(0, 240, 255, 0.10);
+      --gls-border: rgba(0, 240, 255, 0.18);
+      --gls-hi: rgba(0, 240, 255, 0.06);
+
+      /* 文字 */
+      --t1: rgba(220, 245, 255, 0.92);
+      --t2: rgba(140, 200, 230, 0.65);
+      --t3: rgba(80, 140, 180, 0.45);
+
+      /* 发光 */
+      --glow-c: 0 0 8px #00f0ff, 0 0 20px rgba(0, 240, 255, 0.4);
+      --glow-m: 0 0 8px #ff2df7, 0 0 20px rgba(255, 45, 247, 0.4);
+      --glow-l: 0 0 8px #b8ff00, 0 0 20px rgba(184, 255, 0, 0.4);
+      --glow-r: 0 0 8px #ff4500, 0 0 20px rgba(255, 69, 0, 0.4);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      background: radial-gradient(ellipse 140% 80% at 20% 10%, #0d1b4a 0%, #020818 55%),
+        radial-gradient(ellipse 100% 60% at 80% 90%, #1a053a 0%, transparent 60%);
+      background-attachment: fixed;
+      color: var(--t1);
+      font-family: 'Noto Sans SC', sans-serif;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* ── 全局动态 Grid 覆盖层 ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(0, 240, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridDrift 20s linear infinite;
+    }
+
+    @keyframes gridDrift {
+      0% {
+        background-position: 0 0;
+      }
+
+      100% {
+        background-position: 40px 40px;
+      }
+    }
+
+    /* ── 环境光晕 ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 40% at 10% 15%, rgba(0, 240, 255, 0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 35% at 90% 20%, rgba(107, 33, 255, 0.09) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 50% 90%, rgba(255, 45, 247, 0.06) 0%, transparent 70%);
+    }
+
+    /* ── Canvas 层 ── */
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ── 扫描线 ── */
+    #scanline {
+      position: fixed;
+      top: -100%;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(transparent, rgba(0, 240, 255, 0.25), transparent);
+      z-index: 2;
+      pointer-events: none;
+      animation: scanPass 8s linear infinite;
+      filter: blur(1px);
+    }
+
+    @keyframes scanPass {
+      0% {
+        top: -5%
+      }
+
+      100% {
+        top: 105%
+      }
+    }
+
+    /* ── HEX 数据流 ── */
+    .hex-stream {
+      position: fixed;
+      z-index: 2;
+      pointer-events: none;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8.5px;
+      line-height: 1.6;
+      color: rgba(0, 240, 255, 0.045);
+      top: 0;
+      overflow: hidden;
+    }
+
+    #hex-l {
+      left: 0;
+      width: 100px;
+      height: 100%;
+    }
+
+    #hex-r {
+      right: 0;
+      width: 100px;
+      height: 100%;
+      text-align: right;
+    }
+
+    /* ════════ HEADER ════════ */
+    .header {
+      position: relative;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 22px;
+      height: 68px;
+      background: rgba(2, 8, 24, 0.75);
+      backdrop-filter: blur(28px) saturate(1.4);
+      border-bottom: 1px solid var(--gls-border);
+      box-shadow: 0 1px 0 rgba(0, 240, 255, 0.08), 0 4px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    /* 顶部霓虹线 */
+    .header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 5%, var(--c) 30%, var(--m) 60%, var(--lime) 80%, transparent 95%);
+      filter: blur(0.5px);
+      box-shadow: var(--glow-c);
+    }
+
+    /* LOGO */
+    .logo-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .logo-hex {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(107, 33, 255, 0.2));
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--c);
+      letter-spacing: 0;
+      box-shadow: inset 0 0 12px rgba(0, 240, 255, 0.15), var(--glow-c);
+      animation: hexSpin 0.5s ease-out;
+    }
+
+    @keyframes hexSpin {
+      from {
+        opacity: 0;
+        transform: scale(0.5) rotate(-30deg)
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) rotate(0)
+      }
+    }
+
+    .logo-inner {
+      text-align: center;
+      line-height: 1;
+    }
+
+    .logo-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--c), var(--c2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 3px;
+      text-shadow: none;
+      filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.6));
+    }
+
+    .logo-sub {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.77rem;
+      color: var(--t3);
+      letter-spacing: 4px;
+    }
+
+    /* 标题 */
+    .header-center {
+      flex: 1;
+      text-align: center;
+    }
+
+    .main-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: clamp(0.9rem, 1.6vw, 1.35rem);
+      font-weight: 700;
+      letter-spacing: 7px;
+      background: linear-gradient(90deg, var(--c) 0%, var(--c2) 40%, var(--m) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.5));
+    }
+
+    .subtitle {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.86rem;
+      color: var(--t3);
+      letter-spacing: 3px;
+      margin-top: 2px;
+    }
+
+    /* 右侧工具 */
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .bind-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 240, 255, 0.04);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.12rem;
+      color: var(--t2);
+      height: 36px;
+      box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.04);
+    }
+
+    .bind-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--t3);
+      flex-shrink: 0;
+      transition: all 0.4s;
+    }
+
+    .bind-dot.online {
+      background: var(--lime);
+      box-shadow: var(--glow-l);
+      animation: dotPulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes dotPulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.4
+      }
+    }
+
+    .bind-sep {
+      width: 1px;
+      height: 13px;
+      background: rgba(0, 240, 255, 0.15);
+    }
+
+    .refresh-input {
+      width: 30px;
+      text-align: center;
+      padding: 1px 3px;
+      background: rgba(0, 240, 255, 0.06);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 3px;
+      color: var(--c);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.17rem;
+      outline: none;
+    }
+
+    .btn-hdr {
+      height: 36px;
+      padding: 0 14px;
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 4px;
+      background: rgba(0, 240, 255, 0.04);
+      color: var(--c);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.12rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-hdr::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.12), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.35s;
+    }
+
+    .btn-hdr:hover::after {
+      transform: translateX(100%);
+    }
+
+    .btn-hdr:hover {
+      border-color: rgba(0, 240, 255, 0.5);
+      box-shadow: var(--glow-c);
+      color: var(--c2);
+    }
+
+    .btn-unbind {
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 45, 247, 0.3);
+      background: rgba(255, 45, 247, 0.06);
+      color: var(--m);
+      font-size: 1.03rem;
+      cursor: pointer;
+    }
+
+    .clock-box {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .clock {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1rem;
+      color: var(--c);
+      text-shadow: var(--glow-c);
+    }
+
+    .date-display {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.96rem;
+      color: var(--t3);
+    }
+
+    .author-display {
+      font-size: 0.55rem;
+      color: rgba(80, 140, 180, 0.35);
+    }
+
+    /* ════════ 修复率预警播报栏 ════════ */
+    .alert-ticker-bar {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      height: 32px;
+      overflow: hidden;
+      background: rgba(255, 45, 247, 0.06);
+      border-bottom: 1px solid rgba(255, 45, 247, 0.2);
+      border-top: 1px solid rgba(255, 45, 247, 0.1);
+    }
+
+    .alert-ticker-label {
+      flex-shrink: 0;
+      padding: 0 14px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--m);
+      text-shadow: var(--glow-m);
+      letter-spacing: 2px;
+      border-right: 1px solid rgba(255, 45, 247, 0.2);
+      white-space: nowrap;
+    }
+
+    .alert-ticker-track {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      height: 100%;
+    }
+
+    .alert-ticker-inner {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      white-space: nowrap;
+      animation: tickerScroll 30s linear infinite;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+    .alert-ticker-item {
+      padding: 0 40px;
+      color: var(--t2);
+    }
+
+    .alert-ticker-item.warn {
+      color: #ff8c00;
+    }
+
+    .alert-ticker-item.bad {
+      color: #ff4500;
+      text-shadow: 0 0 8px rgba(255, 69, 0, 0.6);
+    }
+
+    .alert-ticker-item.ok {
+      color: var(--lime);
+    }
+
+    @keyframes tickerScroll {
+      0% {
+        transform: translateX(0);
+      }
+
+      100% {
+        transform: translateX(-50%);
+      }
+    }
+
+    /* ════════ 三部门卡片 ════════ */
+    .dept-row {
+      display: flex;
+      gap: 14px;
+      padding: 14px 22px;
+      position: relative;
+      z-index: 20;
+    }
+
+    /* 卡片容器 */
+    .dept-card {
+      flex: 1;
+      position: relative;
+      /* 玻璃底层 */
+      background: rgba(0, 15, 40, 0.65);
+      backdrop-filter: blur(24px) saturate(1.3);
+      -webkit-backdrop-filter: blur(24px) saturate(1.3);
+      border-radius: 8px;
+      overflow: visible;
+      /* 允许装饰超出 */
+      /* 多重细线边框 */
+      border: 1px solid rgba(0, 240, 255, 0.12);
+      box-shadow:
+        0 0 0 1px rgba(0, 240, 255, 0.04),
+        inset 0 0 30px rgba(0, 240, 255, 0.03),
+        0 8px 40px rgba(0, 0, 0, 0.7),
+        0 2px 8px rgba(0, 240, 255, 0.06);
+      transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+      /* Z 轴深度感 */
+      transform: perspective(1200px) rotateX(0.5deg);
+    }
+
+    .dept-card:hover {
+      transform: perspective(1200px) rotateX(0deg) translateY(-5px);
+      border-color: rgba(0, 240, 255, 0.35);
+      box-shadow:
+        0 0 0 1px rgba(0, 240, 255, 0.12),
+        inset 0 0 40px rgba(0, 240, 255, 0.06),
+        0 20px 60px rgba(0, 0, 0, 0.8),
+        0 0 30px rgba(0, 240, 255, 0.12);
+    }
+
+    /* 转角瞄准镜装饰 */
+    .dept-card::before,
+    .dept-card::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: var(--c);
+      border-style: solid;
+      opacity: 0.7;
+      z-index: 10;
+      transition: opacity 0.3s;
+    }
+
+    .dept-card::before {
+      top: -1px;
+      left: -1px;
+      border-width: 2px 0 0 2px;
+      border-radius: 0;
+    }
+
+    .dept-card::after {
+      bottom: -1px;
+      right: -1px;
+      border-width: 0 2px 2px 0;
+      border-radius: 0;
+    }
+
+    .dept-card:hover::before,
+    .dept-card:hover::after {
+      opacity: 1;
+      filter: drop-shadow(0 0 4px var(--c));
+    }
+
+    /* 对角瞄准镜（伪元素只能2个，用子元素补充）*/
+    .dept-card .corner-tr,
+    .dept-card .corner-bl {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: var(--c);
+      border-style: solid;
+      opacity: 0.7;
+      z-index: 10;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .dept-card .corner-tr {
+      top: -1px;
+      right: -1px;
+      border-width: 2px 2px 0 0;
+    }
+
+    .dept-card .corner-bl {
+      bottom: -1px;
+      left: -1px;
+      border-width: 0 0 2px 2px;
+    }
+
+    .dept-card:hover .corner-tr,
+    .dept-card:hover .corner-bl {
+      opacity: 1;
+      filter: drop-shadow(0 0 4px var(--c));
+    }
+
+    /* 部门色条 */
+    .dept-accent {
+      height: 2px;
+      width: 100%;
+      position: relative;
+      border-radius: 0;
+    }
+
+    .dept-card[data-dept="sys"] .dept-accent {
+      background: linear-gradient(90deg, transparent, var(--c), var(--c2), transparent);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+    }
+
+    .dept-card[data-dept="smt"] .dept-accent {
+      background: linear-gradient(90deg, transparent, var(--pur), var(--m), transparent);
+      box-shadow: 0 0 10px rgba(255, 45, 247, 0.5);
+    }
+
+    .dept-card[data-dept="elec"] .dept-accent {
+      background: linear-gradient(90deg, transparent, var(--lime), #7fff00, transparent);
+      box-shadow: 0 0 10px rgba(184, 255, 0, 0.5);
+    }
+
+    /* 3D 硬件背景装饰（SVG 电路板轨迹）*/
+    .dept-bg-art {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 45%;
+      opacity: 0.06;
+      pointer-events: none;
+      overflow: hidden;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .dept-bg-art svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 卡片内容 */
+    .dept-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.06);
+      position: relative;
+      z-index: 5;
+    }
+
+    .dept-card-icon {
+      font-size: 1rem;
+    }
+
+    .dept-card-label {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.46rem;
+      font-weight: 700;
+      color: var(--c2);
+      letter-spacing: 3px;
+      text-shadow: var(--glow-c);
+    }
+
+    .dept-card-sub {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--t3);
+      margin-left: auto;
+    }
+
+    .dept-card-body {
+      display: flex;
+      position: relative;
+      z-index: 5;
+    }
+
+    .dept-side {
+      flex: 1;
+      padding: 12px 14px;
+    }
+
+    .dept-side+.dept-side {
+      border-left: 1px solid rgba(0, 240, 255, 0.06);
+    }
+
+    .dept-side-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.92rem;
+      color: var(--t3);
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .dept-side-label::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--c);
+      box-shadow: 0 0 5px var(--c);
+    }
+
+    .dept-side[data-side="month"] .dept-side-label::before {
+      background: var(--m);
+      box-shadow: 0 0 5px var(--m);
+    }
+
+    .dept-side-note {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: rgba(255, 45, 247, 0.35);
+      margin-bottom: 8px;
+      margin-top: -2px;
+    }
+
+    .dept-metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 7px;
+    }
+
+    .dept-metric-name {
+      font-size: 1.05rem;
+      color: var(--t2);
+    }
+
+    .dept-metric-val {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.51rem;
+      font-weight: 600;
+      color: var(--t1);
+      transition: color 0.3s, text-shadow 0.3s;
+    }
+
+    /* 修复率核心数字 — 霓虹辉光 + 呼吸 */
+    .dept-metric-val.highlight-rate {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--lime);
+      text-shadow: 0 0 8px var(--lime), 0 0 20px rgba(184, 255, 0, 0.5);
+      animation: breatheLime 3s ease-in-out infinite;
+      background: linear-gradient(90deg, var(--lime), #7fff00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 8px rgba(184, 255, 0, 0.6));
+    }
+
+    .dept-metric-val.highlight-rate.rate-warn {
+      background: linear-gradient(90deg, #ff8c00, #ffd700);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 10px rgba(255, 140, 0, 0.7));
+      animation: breatheAmber 2s ease-in-out infinite;
+    }
+
+    .dept-metric-val.highlight-rate.rate-bad {
+      /* 荧光红→橙渐变 */
+      background: linear-gradient(90deg, #ff2200, #ff6600);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 12px rgba(255, 50, 0, 0.9));
+      animation: breatheRed 1.3s ease-in-out infinite;
+    }
+
+    @keyframes breatheLime {
+
+      0%,
+      100% {
+        filter: drop-shadow(0 0 6px rgba(184, 255, 0, 0.5));
+      }
+
+      50% {
+        filter: drop-shadow(0 0 18px rgba(184, 255, 0, 1)) drop-shadow(0 0 35px rgba(184, 255, 0, 0.35));
+      }
+    }
+
+    @keyframes breatheAmber {
+
+      0%,
+      100% {
+        filter: drop-shadow(0 0 8px rgba(255, 140, 0, 0.6));
+      }
+
+      50% {
+        filter: drop-shadow(0 0 22px rgba(255, 140, 0, 1)) drop-shadow(0 0 40px rgba(255, 140, 0, 0.4));
+      }
+    }
+
+    @keyframes breatheRed {
+
+      0%,
+      100% {
+        filter: drop-shadow(0 0 10px rgba(255, 50, 0, 0.7));
+      }
+
+      50% {
+        filter: drop-shadow(0 0 28px rgba(255, 50, 0, 1)) drop-shadow(0 0 50px rgba(255, 100, 0, 0.5));
+      }
+    }
+
+    .dept-redline {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: rgba(0, 240, 255, 0.25);
+      margin-top: 6px;
+    }
+
+    /* ════════ WIP 趋势 ════════ */
+    .wip-card {
+      margin: 0 22px 14px;
+      position: relative;
+      background: rgba(0, 15, 40, 0.65);
+      backdrop-filter: blur(24px);
+      border-radius: 8px;
+      border: 1px solid rgba(0, 240, 255, 0.12);
+      box-shadow:
+        inset 0 0 40px rgba(0, 240, 255, 0.03),
+        0 12px 48px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(0, 240, 255, 0.04);
+      z-index: 20;
+      overflow: hidden;
+    }
+
+    .wip-card::before,
+    .wip-card::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-color: var(--c);
+      border-style: solid;
+      opacity: 0.5;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .wip-card::before {
+      top: -1px;
+      left: -1px;
+      border-width: 2px 0 0 2px;
+    }
+
+    .wip-card::after {
+      bottom: -1px;
+      right: -1px;
+      border-width: 0 2px 2px 0;
+    }
+
+    .wip-card .corner-tr,
+    .wip-card .corner-bl {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-color: var(--c);
+      border-style: solid;
+      opacity: 0.5;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .wip-card .corner-tr {
+      top: -1px;
+      right: -1px;
+      border-width: 2px 2px 0 0;
+    }
+
+    .wip-card .corner-bl {
+      bottom: -1px;
+      left: -1px;
+      border-width: 0 0 2px 2px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.07);
+      position: relative;
+      z-index: 5;
+    }
+
+    .card-icon {
+      font-size: 1rem;
+    }
+
+    .card-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.41rem;
+      font-weight: 600;
+      flex: 1;
+      letter-spacing: 2px;
+      color: var(--c2);
+    }
+
+    .card-badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.86rem;
+      color: var(--c);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 2px;
+      padding: 1px 7px;
+      letter-spacing: 2px;
+      text-shadow: var(--glow-c);
+      box-shadow: var(--glow-c);
+      animation: badgePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes badgePulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 4px rgba(0, 240, 255, 0.3);
+      }
+
+      50% {
+        box-shadow: 0 0 12px rgba(0, 240, 255, 0.7), 0 0 20px rgba(0, 240, 255, 0.2);
+      }
+    }
+
+    #chart-wip-trend {
+      width: 100%;
+      display: block;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* ════════ Settings ════════ */
+
+
+    .ai-section::before,
+    .teams-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.4), transparent);
+    }
+
+
+
+
+
+
+    /* 输入框 */
+    .glass-input {
+      background: rgba(0, 240, 255, 0.04);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      border-radius: 4px;
+      color: var(--t1);
+      padding: 4px 9px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.12rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .glass-input:focus {
+      border-color: rgba(0, 240, 255, 0.5);
+      box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.1), var(--glow-c);
+      background: rgba(0, 240, 255, 0.07);
+    }
+
+    /* 按钮 */
+    .btn-glass {
+      padding: 4px 11px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      background: rgba(0, 240, 255, 0.06);
+      color: var(--c);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.12rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-glass::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.15), transparent);
+      transform: translateX(-100%);
+      transition: 0.35s;
+    }
+
+    .btn-glass:hover::after {
+      transform: translateX(100%);
+    }
+
+    .btn-glass:hover {
+      border-color: rgba(0, 240, 255, 0.5);
+      box-shadow: var(--glow-c);
+    }
+
+    .btn-primary-glass {
+      padding: 5px 15px;
+      border-radius: 4px;
+      border: none;
+      background: linear-gradient(90deg, rgba(0, 240, 255, 0.15), rgba(107, 33, 255, 0.2));
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--c);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.24rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+      box-shadow: var(--glow-c);
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary-glass::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+      transform: translateX(-100%);
+    }
+
+    .btn-primary-glass:hover::before {
+      transform: translateX(100%);
+      transition: 0.4s;
+    }
+
+    .btn-primary-glass:hover {
+      box-shadow: var(--glow-c), var(--glow-m);
+      border-color: var(--m);
+    }
+
+
+
+    .teams-body {
+      padding: 11px 14px;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* checkbox */
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 9px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.08rem;
+      color: var(--t2);
+    }
+
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .checkbox-group input[type=checkbox] {
+      accent-color: var(--c);
+    }
+
+    .alert-group {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 9px;
+      padding: 8px 10px;
+      background: rgba(255, 45, 247, 0.04);
+      border: 1px solid rgba(255, 45, 247, 0.15);
+      border-radius: 5px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.08rem;
+      color: var(--t2);
+    }
+
+    .alert-group-title {
+      font-size: 0.96rem;
+      color: var(--m);
+      letter-spacing: 2px;
+      text-shadow: var(--glow-m);
+    }
+
+    .alert-group label {
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .alert-group input[type=checkbox] {
+      accent-color: var(--m);
+      margin-top: 2px;
+    }
+
+    .teams-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-outline-glass {
+      padding: 4px 11px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      background: transparent;
+      color: var(--t2);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.08rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-outline-glass:hover {
+      border-color: var(--c);
+      color: var(--c);
+      box-shadow: var(--glow-c);
+    }
+
+    /* ════════ Modal ════════ */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 5, 18, 0.8);
+      backdrop-filter: blur(16px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-overlay.active {
+      display: flex;
+    }
+
+    .detail-card {
+      width: 90vw;
+      max-width: 1000px;
+      max-height: 80vh;
+      background: rgba(0, 15, 40, 0.92);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 8px;
+      box-shadow: 0 0 60px rgba(0, 240, 255, 0.1), 0 30px 80px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      backdrop-filter: blur(32px);
+    }
+
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 13px 16px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+    }
+
+    .detail-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.63rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--c);
+      text-shadow: var(--glow-c);
+    }
+
+    .detail-count {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.03rem;
+      color: var(--t3);
+      margin-top: 3px;
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn-export {
+      padding: 3px 9px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      background: rgba(0, 240, 255, 0.07);
+      color: var(--c);
+      font-size: 1.07rem;
+      cursor: pointer;
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .detail-close {
+      width: 24px;
+      height: 24px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      background: rgba(0, 240, 255, 0.05);
+      color: var(--t2);
+      cursor: pointer;
+    }
+
+    .detail-table-wrap {
+      overflow: auto;
+      flex: 1;
+    }
+
+    .detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1.17rem;
+    }
+
+    .detail-table th {
+      position: sticky;
+      top: 0;
+      background: rgba(0, 10, 30, 0.95);
+      color: var(--c);
+      padding: 7px 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.12);
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .detail-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.04);
+      color: var(--t2);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .detail-table tr:hover td {
+      background: rgba(0, 240, 255, 0.03);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 20px;
+      border-radius: 4px;
+      background: rgba(0, 15, 40, 0.9);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      backdrop-filter: blur(20px);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.24rem;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s;
+      white-space: nowrap;
+      color: var(--c);
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .toast-success {
+      border-color: rgba(184, 255, 0, 0.4);
+      color: var(--lime);
+      box-shadow: var(--glow-l);
+    }
+
+    .toast-warn {
+      border-color: rgba(255, 140, 0, 0.4);
+      color: #ff8c00;
+    }
+
+    .toast-error {
+      border-color: rgba(255, 34, 0, 0.4);
+      color: #ff4500;
+      box-shadow: var(--glow-r);
+    }
+
+    .toast-info {
+      border-color: rgba(0, 240, 255, 0.35);
+      color: var(--c);
+      box-shadow: var(--glow-c);
+    }
+
+    /* ════════ 布局贴底调整 ════════ */
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .header {
+      flex-shrink: 0;
+    }
+
+    .alert-ticker-bar {
+      flex-shrink: 0;
+    }
+
+    .dept-row {
+      flex-shrink: 0;
+    }
+
+    /* WIP 图自动填满中间剩余空间 */
+    .wip-card {
+      flex: 1;
+      margin-bottom: 0 !important;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .wip-card canvas#chart-wip-trend {
+      flex: 1;
+      height: auto !important;
+      /* 让 canvas 跟随父容器 */
+      min-height: 220px;
+    }
+
+    .repair-chart-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 12px clamp(12px, 2vw, 24px) 0;
+    }
+
+    .repair-chart-card {
+      min-height: 176px;
+      background: rgba(0, 15, 40, 0.62);
+      border: 1px solid rgba(0, 240, 255, 0.12);
+      border-radius: 8px;
+      padding: 10px 12px;
+      box-shadow: inset 0 0 24px rgba(0, 240, 255, 0.02);
+    }
+
+    .repair-chart-title {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--c);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+    }
+
+    .repair-chart-surface {
+      min-height: 132px;
+    }
+
+    .repair-bar-row {
+      display: grid;
+      grid-template-columns: 68px 1fr 42px;
+      align-items: center;
+      gap: 8px;
+      margin: 7px 0;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.76rem;
+      color: var(--t2);
+    }
+
+    .repair-bar-track {
+      height: 8px;
+      background: rgba(0, 240, 255, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .repair-bar-fill {
+      height: 100%;
+      min-width: 2px;
+      background: linear-gradient(90deg, var(--c), var(--m));
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+    }
+
+    .repair-chart-empty {
+      min-height: 132px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--t3);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.78rem;
+    }
+
+    @media (max-width: 1180px) {
+      .repair-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .repair-chart-grid { grid-template-columns: 1fr; }
+    }
+
+    /* settings 贴底 */
+    /* ════════ 设置弹窗 Modal ════════ */
+    #settings-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0, 5, 18, 0.82);
+      backdrop-filter: blur(16px);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #settings-modal.active {
+      display: flex;
+    }
+
+    .settings-card {
+      width: min(96vw, 1100px);
+      max-height: 88vh;
+      overflow-y: auto;
+      background: rgba(0, 12, 36, 0.97);
+      border: 1px solid rgba(0, 240, 255, 0.22);
+      border-radius: 12px;
+      box-shadow: 0 0 80px rgba(0, 240, 255, 0.12), 0 30px 80px rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(32px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .settings-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px 16px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+      flex-shrink: 0;
+    }
+
+    .settings-card-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--c);
+      letter-spacing: 3px;
+      text-shadow: var(--glow-c);
+    }
+
+    .settings-card-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      background: rgba(0, 240, 255, 0.06);
+      color: var(--t2);
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .settings-card-close:hover {
+      border-color: var(--m);
+      color: var(--m);
+      box-shadow: var(--glow-m);
+    }
+
+    .settings-card-body {
+      padding: 22px 28px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .settings-section-title {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--m);
+      letter-spacing: 3px;
+      text-shadow: var(--glow-m);
+      margin-bottom: 12px;
+    }
+
+    .settings-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 700px) {
+      .settings-2col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .settings-close-btn {
+      display: none;
+    }
+
+    /* 已废弃 */
+    .btn-hdr-settings {
+      height: 34px;
+      padding: 0 16px;
+      border: 1px solid rgba(255, 45, 247, 0.35);
+      border-radius: 4px;
+      background: rgba(255, 45, 247, 0.07);
+      color: var(--m);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-hdr-settings:hover {
+      border-color: rgba(255, 45, 247, 0.65);
+      box-shadow: var(--glow-m);
+    }
+
+    .btn-hdr-settings.active {
+      background: rgba(255, 45, 247, 0.15);
+      border-color: var(--m);
+      box-shadow: var(--glow-m);
+    }
+
+    /* 部门卡片稍微撑高 */
+    .dept-card-body .dept-side {
+      padding: 16px 16px;
+    }
+
+    .dept-metric-row {
+      margin-bottom: 10px;
+    }
+
+    .dept-metric-val.highlight-rate {
+      font-size: 1.55rem !important;
+    }
+
+    /* 三个部门卡片等高撑满 */
+    .dept-row {
+      flex: 1;
+    }
+
+    .dept-card {
+      height: 100%;
+    }
+
+    .dept-card-body {
+      height: calc(100% - 48px);
+    }
+
+    .dept-side {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+  </style>
+  <!-- 可选外部资源（仅提供背景粒子特效/备用主题）。公开 Demo 未随仓库提供，故注释以避免 404；
+       页面内置样式已是完整主题，所有图表均为本地 canvas/HTML 渲染，无需这两个文件。
+       如需粒子背景，把脱敏后的资源放入本目录并取消下面注释即可。
+  <link rel="stylesheet" href="./industrial-blue-white.css">
+  <script src="./industrial-dashboard.js"></script>
+  -->
+</head>
+
+<body>
+
+
+  <!-- 数据流 -->
+  <div class="hex-stream" id="hex-l"></div>
+  <div class="hex-stream" id="hex-r"></div>
+
+  <!-- 背景 Canvas -->
+
+  <!-- ════════ HEADER ════════ -->
+  <header class="header">
+    <div class="logo-box">
+      <div class="logo-hex">ASH</div>
+      <div>
+        <div class="logo-title">REPAIR</div>
+        <div class="logo-sub">数字孪生监控系统</div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <h1 class="main-title">维 修 中 心 修 复 率 看 板</h1>
+    </div>
+
+    <div class="header-right">
+      <button class="btn-hdr" onclick="manualRefresh()" title="立即重读所有绑定文件"
+        style="border-color:rgba(184,255,0,0.3);color:var(--lime);background:rgba(184,255,0,0.05);">
+        ↺ 立即刷新
+      </button>
+      <button class="btn-hdr-settings" id="btn-settings" onclick="toggleSettings()">⚙ 设置</button>
+      <div class="clock-box">
+        <div id="clock" class="clock">00:00:00</div>
+        <div id="date" class="date-display">2026.01.01</div>
+        <div class="author-display">作者: 龙程</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 修复率未达标播报栏 -->
+  <div class="alert-ticker-bar" id="alert-ticker-bar">
+    <span class="alert-ticker-label">⚠ 预警播报</span>
+    <div class="alert-ticker-track">
+      <div class="alert-ticker-inner" id="alert-ticker-inner">
+        <span class="alert-ticker-item">// 数据加载中，请绑定或导入文件...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ 三部门卡片 ════════ -->
+  <div class="dept-row">
+
+    <!-- 系统厂 -->
+    <div class="dept-card" id="dept-sys" data-dept="sys">
+      <div class="corner-tr"></div>
+      <div class="corner-bl"></div>
+      <!-- 电路板背景装饰 -->
+      <div class="dept-bg-art">
+        <svg viewBox="0 0 200 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+          <g stroke="#00f0ff" stroke-width="1" fill="none" opacity="1">
+            <!-- 芯片轮廓 -->
+            <rect x="60" y="80" width="80" height="80" rx="4" />
+            <rect x="70" y="90" width="60" height="60" rx="2" />
+            <!-- 引脚 -->
+            <line x1="60" y1="95" x2="30" y2="95" />
+            <line x1="60" y1="108" x2="30" y2="108" />
+            <line x1="60" y1="121" x2="30" y2="121" />
+            <line x1="60" y1="134" x2="30" y2="134" />
+            <line x1="140" y1="95" x2="170" y2="95" />
+            <line x1="140" y1="108" x2="170" y2="108" />
+            <line x1="140" y1="121" x2="170" y2="121" />
+            <line x1="140" y1="134" x2="170" y2="134" />
+            <line x1="80" y1="80" x2="80" y2="50" />
+            <line x1="100" y1="80" x2="100" y2="50" />
+            <line x1="120" y1="80" x2="120" y2="50" />
+            <line x1="80" y1="160" x2="80" y2="190" />
+            <line x1="100" y1="160" x2="100" y2="190" />
+            <line x1="120" y1="160" x2="120" y2="190" />
+            <!-- 电路走线 -->
+            <polyline points="30,95 15,95 15,50 80,50" />
+            <polyline points="30,134 15,134 15,200 80,200" />
+            <polyline points="170,108 185,108 185,50 120,50" />
+            <circle cx="100" cy="120" r="18" />
+            <circle cx="100" cy="120" r="10" />
+            <circle cx="100" cy="120" r="3" fill="#00f0ff" opacity="0.5" />
+            <!-- 角落装饰 -->
+            <rect x="5" y="5" width="20" height="20" opacity="0.3" />
+            <rect x="175" y="275" width="20" height="20" opacity="0.3" />
+          </g>
+        </svg>
+      </div>
+      <div class="dept-accent"></div>
+      <div class="dept-card-header">
+        <span class="dept-card-icon">🖥️</span>
+        <span class="dept-card-label">系统厂</span>
+        <span class="dept-card-sub">// 系统厂修复率.xlsx</span>
+      </div>
+      <div class="dept-card-body">
+        <div class="dept-side" data-side="today">
+          <div class="dept-side-label">TODAY · 今日</div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📥 进板数</span><span
+              class="dept-metric-val dept-day-in" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📤 出板数</span><span
+              class="dept-metric-val dept-day-out" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">⚡ 修复率</span><span
+              class="dept-metric-val highlight-rate dept-day-rate">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name" style="color:var(--m)">🔧 今日WIP</span><span
+              class="dept-metric-val dept-wip-val" style="color:var(--m);cursor:pointer;font-size:1.3rem;"
+              title="点击查看今日待修明细">—</span></div>
+          <div class="dept-redline">// 红线: 日 ≥ 60%</div>
+        </div>
+        <div class="dept-side" data-side="month">
+          <div class="dept-side-label">MONTH · 本月</div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📥 进板数</span><span
+              class="dept-metric-val dept-mon-in" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📤 出板数</span><span
+              class="dept-metric-val dept-mon-out" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">⚡ 修复率</span><span
+              class="dept-metric-val highlight-rate dept-mon-rate">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name" style="color:var(--m)">🔧 月WIP</span><span
+              class="dept-metric-val dept-wip-val" style="color:var(--m);cursor:pointer;font-size:1.3rem;"
+              title="点击查看本月待修明细">—</span></div>
+          <div class="dept-redline">// 红线: 月 ≥ 70%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SMT -->
+    <div class="dept-card" id="dept-smt" data-dept="smt">
+      <div class="corner-tr"></div>
+      <div class="corner-bl"></div>
+      <div class="dept-bg-art">
+        <svg viewBox="0 0 200 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+          <g stroke="#ff2df7" stroke-width="1" fill="none" opacity="1">
+            <!-- 齿轮造型 -->
+            <circle cx="100" cy="130" r="45" />
+            <circle cx="100" cy="130" r="30" />
+            <circle cx="100" cy="130" r="10" />
+            <!-- 齿 -->
+            <rect x="93" y="78" width="14" height="14" rx="2" />
+            <rect x="93" y="168" width="14" height="14" rx="2" />
+            <rect x="48" y="123" width="14" height="14" rx="2" />
+            <rect x="138" y="123" width="14" height="14" rx="2" />
+            <rect x="61" y="90" width="12" height="12" rx="2" transform="rotate(-45 67 96)" />
+            <rect x="127" y="90" width="12" height="12" rx="2" transform="rotate(45 133 96)" />
+            <rect x="61" y="156" width="12" height="12" rx="2" transform="rotate(45 67 162)" />
+            <rect x="127" y="156" width="12" height="12" rx="2" transform="rotate(-45 133 162)" />
+            <!-- 辐射线 -->
+            <line x1="100" y1="85" x2="100" y2="50" />
+            <line x1="100" y1="175" x2="100" y2="220" />
+            <line x1="55" y1="130" x2="20" y2="130" />
+            <line x1="145" y1="130" x2="180" y2="130" />
+            <!-- 角落 -->
+            <polyline points="5,5 5,25 25,25" opacity="0.4" />
+            <polyline points="195,295 195,275 175,275" opacity="0.4" />
+            <circle cx="100" cy="130" r="5" fill="#ff2df7" opacity="0.4" />
+          </g>
+        </svg>
+      </div>
+      <div class="dept-accent"></div>
+      <div class="dept-card-header">
+        <span class="dept-card-icon">🔬</span>
+        <span class="dept-card-label">SMT 产线</span>
+        <span class="dept-card-sub">// 维修员: 周敏 · 吴杰</span>
+      </div>
+      <div class="dept-card-body">
+        <div class="dept-side" data-side="today">
+          <div class="dept-side-label">TODAY · 今日</div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📥 进板数</span><span
+              class="dept-metric-val dept-day-in" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📤 出板数</span><span
+              class="dept-metric-val dept-day-out" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">⚡ 修复率</span><span
+              class="dept-metric-val highlight-rate dept-day-rate">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name" style="color:var(--m)">🔧 今日WIP</span><span
+              class="dept-metric-val dept-wip-val" style="color:var(--m);cursor:pointer;font-size:1.3rem;"
+              title="点击查看今日待修明细">—</span></div>
+          <div class="dept-redline">// 红线: 日 ≥ 90% (或月)</div>
+        </div>
+        <div class="dept-side" data-side="month">
+          <div class="dept-side-label">MONTH · 本月</div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📥 进板数</span><span
+              class="dept-metric-val dept-mon-in" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📤 出板数</span><span
+              class="dept-metric-val dept-mon-out" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">⚡ 修复率</span><span
+              class="dept-metric-val highlight-rate dept-mon-rate">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name" style="color:var(--m)">🔧 月WIP</span><span
+              class="dept-metric-val dept-wip-val" style="color:var(--m);cursor:pointer;font-size:1.3rem;"
+              title="点击查看本月待修明细">—</span></div>
+          <div class="dept-redline">// 红线: 月 ≥ 98%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 电子厂 -->
+    <div class="dept-card" id="dept-elec" data-dept="elec">
+      <div class="corner-tr"></div>
+      <div class="corner-bl"></div>
+      <div class="dept-bg-art">
+        <svg viewBox="0 0 200 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+          <g stroke="#b8ff00" stroke-width="1" fill="none" opacity="1">
+            <polyline points="20,40 60,40 60,80 140,80 140,40 180,40" />
+            <polyline points="20,100 50,100 50,130 80,130 80,160 120,160 120,130 150,130 150,100 180,100" />
+            <polyline points="20,200 70,200 70,170 130,170 130,200 180,200" />
+            <polyline points="60,40 60,20 100,20 100,40" />
+            <polyline points="140,40 140,20 100,20" />
+            <circle cx="60" cy="80" r="5" />
+            <circle cx="140" cy="80" r="5" />
+            <circle cx="50" cy="130" r="4" />
+            <circle cx="80" cy="130" r="4" />
+            <circle cx="120" cy="130" r="4" />
+            <circle cx="150" cy="130" r="4" />
+            <circle cx="70" cy="170" r="5" />
+            <circle cx="130" cy="170" r="5" />
+            <rect x="88" y="75" width="24" height="10" rx="2" />
+            <rect x="88" y="125" width="24" height="10" rx="2" />
+            <polyline points="5,5 5,30 30,30" opacity="0.5" />
+            <polyline points="195,295 195,270 170,270" opacity="0.5" />
+            <circle cx="60" cy="80" r="2" fill="#b8ff00" opacity="0.6" />
+            <circle cx="140" cy="80" r="2" fill="#b8ff00" opacity="0.6" />
+            <circle cx="100" cy="20" r="3" fill="#b8ff00" opacity="0.5" />
+          </g>
+        </svg>
+      </div>
+      <div class="dept-accent"></div>
+      <div class="dept-card-header">
+        <span class="dept-card-icon">⚙️</span>
+        <span class="dept-card-label">电子厂</span>
+        <span class="dept-card-sub">// 排除 SMT 员工</span>
+      </div>
+      <div class="dept-card-body">
+        <div class="dept-side" data-side="today">
+          <div class="dept-side-label">TODAY · 今日</div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📥 进板数</span><span
+              class="dept-metric-val dept-day-in" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📤 出板数</span><span
+              class="dept-metric-val dept-day-out" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">⚡ 修复率</span><span
+              class="dept-metric-val highlight-rate dept-day-rate">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name" style="color:var(--m)">🔧 今日WIP</span><span
+              class="dept-metric-val dept-wip-val" style="color:var(--m);cursor:pointer;font-size:1.3rem;"
+              title="点击查看今日待修明细">—</span></div>
+          <div class="dept-redline">// 红线: 日 ≥ 80%</div>
+        </div>
+        <div class="dept-side" data-side="month">
+          <div class="dept-side-label">MONTH · 本月</div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📥 进板数</span><span
+              class="dept-metric-val dept-mon-in" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">📤 出板数</span><span
+              class="dept-metric-val dept-mon-out" style="cursor:pointer" title="点击查看明细">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name">⚡ 修复率</span><span
+              class="dept-metric-val highlight-rate dept-mon-rate">—</span></div>
+          <div class="dept-metric-row"><span class="dept-metric-name" style="color:var(--m)">🔧 月WIP</span><span
+              class="dept-metric-val dept-wip-val" style="color:var(--m);cursor:pointer;font-size:1.3rem;"
+              title="点击查看本月待修明细">—</span></div>
+          <div class="dept-redline">// 红线: 日 ≥ 90% (或月)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- hidden file input -->
+  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" multiple style="display:none">
+
+  <!-- ════════ WIP 趋势 ════════ -->
+  <div class="wip-card">
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="card-header">
+      <span class="card-icon">📡</span>
+      <span class="card-title" id="wip-title">WIP 待修趋势 · 近7天</span>
+      <button id="btn-wip-toggle" onclick="toggleWipMode()"
+        style="margin-left:auto;margin-right:8px;padding:2px 10px;border-radius:3px;border:1px solid rgba(0,240,255,0.25);background:rgba(0,240,255,0.06);color:var(--c);font-family:'Share Tech Mono',monospace;font-size:0.8rem;cursor:pointer;">📅
+        按月</button>
+      <span class="card-badge">实时</span>
+    </div>
+    <canvas id="chart-wip-trend"></canvas>
+  </div>
+
+  <div class="repair-chart-grid">
+    <div class="repair-chart-card">
+      <div class="repair-chart-title">修复率排行</div>
+      <div class="repair-chart-surface" id="chart-rate-rank"></div>
+    </div>
+    <div class="repair-chart-card">
+      <div class="repair-chart-title">进出板排行</div>
+      <div class="repair-chart-surface" id="chart-count-rank"></div>
+    </div>
+    <div class="repair-chart-card">
+      <div class="repair-chart-title">不良 TOP5</div>
+      <div class="repair-chart-surface" id="chart-defect-top5"></div>
+    </div>
+    <div class="repair-chart-card">
+      <div class="repair-chart-title">原因分布</div>
+      <div class="repair-chart-surface" id="chart-reason"></div>
+    </div>
+  </div>
+
+  <!-- ════════ Settings Modal ════════ -->
+  <div id="settings-modal">
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <span class="settings-card-title">⚙ 系统设置</span>
+        <button class="settings-card-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-card-body">
+
+        <!-- 1. 数据源绑定 -->
+        <div
+          style="background:rgba(0,240,255,0.03);border:1px solid rgba(0,240,255,0.1);border-radius:8px;padding:18px 20px;">
+          <div class="settings-section-title">// 数据源 · 文件绑定</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <div class="bind-bar" style="gap:5px;padding:4px 10px;">
+              <span class="bind-dot" id="bind-dot-sys"></span>
+              <span id="bind-name-sys"
+                style="font-size:0.85rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">系统厂
+                未绑定</span>
+              <button class="btn-unbind" id="btn-unbind-sys" onclick="unbindFileSys()"
+                style="display:none;font-size:0.8rem;">✕断开</button>
+            </div>
+            <button class="btn-glass" onclick="bindFileSys()">⬡ 绑定系统厂</button>
+            <div class="bind-bar" style="gap:5px;padding:4px 10px;">
+              <span class="bind-dot" id="bind-dot-ash"></span>
+              <span id="bind-name-ash"
+                style="font-size:0.85rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">ASH
+                未绑定</span>
+              <button class="btn-unbind" id="btn-unbind-ash" onclick="unbindFileAsh()"
+                style="display:none;font-size:0.8rem;">✕断开</button>
+            </div>
+            <button class="btn-glass" onclick="bindFileAsh()">⬡ 绑定 ASH</button>
+            <button class="btn-glass" onclick="document.getElementById('fileInput').click()">▲ 手动导入</button>
+            <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+              <span style="font-family:'Share Tech Mono',monospace;font-size:0.82rem;color:var(--t3);">自动同步</span>
+              <input type="number" id="refresh-mins" value="5" min="1" max="60" onchange="updateRefreshInterval()"
+                class="refresh-input" style="width:36px;">
+              <span style="font-family:'Share Tech Mono',monospace;font-size:0.82rem;color:var(--t3);">min</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. AI + Teams 两列 -->
+        <div class="settings-2col">
+
+          <!-- AI -->
+          <div
+            style="background:rgba(0,240,255,0.03);border:1px solid rgba(0,240,255,0.1);border-radius:8px;padding:18px 20px;">
+            <div class="settings-section-title">// AI 报告生成</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <input id="ai-endpoint" class="glass-input" placeholder="OpenAI 兼容接口地址（自填）" style="width:100%;">
+              <div style="display:flex;gap:8px;">
+                <input id="ai-model-input" class="glass-input" style="flex:1;" placeholder="gemma-4-31b-it"
+                  value="gemma-4-31b-it">
+                <input id="ai-key" class="glass-input" type="password" placeholder="API 密钥" style="flex:1;">
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-glass" onclick="saveAiConfig()">💾 保存</button>
+                <button class="btn-primary-glass" onclick="generateAiReport()">✦ 生成报告</button>
+              </div>
+              <div class="ai-report-body" id="ai-report-out" style="min-height:60px;">
+                <div class="ai-placeholder">// 配置后点击"生成报告"...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Teams + 企微 -->
+          <div
+            style="background:rgba(255,45,247,0.03);border:1px solid rgba(255,45,247,0.12);border-radius:8px;padding:18px 20px;">
+            <div class="settings-section-title">// 推送配置 · Teams &amp; 企微</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;gap:8px;align-items:center;">
+                <span
+                  style="font-family:'Share Tech Mono',monospace;font-size:0.82rem;color:var(--t3);white-space:nowrap;">推送时间</span>
+                <input type="time" id="teams-time" class="glass-input" value="08:00" style="width:120px;">
+              </div>
+              <input id="teams-webhook" class="glass-input" style="width:100%;" placeholder="Teams Webhook URL">
+              <div style="display:flex;gap:8px;">
+                <input id="wxwork-webhook" class="glass-input" style="flex:1;" placeholder="企微机器人 Webhook URL">
+                <button class="btn-glass" style="border-color:rgba(7,193,96,0.3);color:#07c160;white-space:nowrap;"
+                  onclick="testWxworkPush()">🟢 测试</button>
+              </div>
+              <div class="checkbox-group">
+                <label><input type="checkbox" id="push-yesterday" checked> 昨日</label>
+                <label><input type="checkbox" id="push-lastweek" checked> 上周</label>
+                <label><input type="checkbox" id="push-lastmonth" checked> 上月</label>
+                <label><input type="checkbox" id="push-year" checked> 今日修复率</label>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:4px;">
+                <button class="btn-outline-glass" onclick="testTeamsPush()">📡 Teams测试</button>
+                <button class="btn-glass" onclick="saveTeamsConfig()">💾 保存推送配置</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /settings-2col -->
+      </div><!-- /settings-card-body -->
+    </div><!-- /settings-card -->
+  </div><!-- /settings-modal -->
+
+  <!-- Modal -->
+  <div class="detail-overlay" id="detail-overlay" onclick="closeDetailOverlay(event)">
+    <div class="detail-card">
+      <div class="detail-header">
+        <div>
+          <div class="detail-title" id="detail-title">明细记录</div>
+          <div class="detail-count" id="detail-count">0 条记录</div>
+        </div>
+        <div class="detail-actions">
+          <button class="btn-export" onclick="exportDetailExcel()">↓ 导出</button>
+          <button class="detail-close"
+            onclick="document.getElementById('detail-overlay').classList.remove('active')">✕</button>
+        </div>
+      </div>
+      <div class="detail-table-wrap">
+        <table class="detail-table">
+          <thead>
+            <tr id="detail-thead-row">
+              <th>工单</th>
+              <th>料号</th>
+              <th>序号</th>
+              <th>维修员</th>
+              <th>描述</th>
+              <th>原因</th>
+              <th>责任别</th>
+              <th>维修位置</th>
+              <th>进板时间</th>
+              <th>出板时间</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody id="detail-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="./libs/xlsx.full.min.js"></script>
+  <script>
+    /* ============================================================
+       ASH Repair Dashboard – app.js v4
+       Data: Excel import, Shared File Polling, AI Report, Teams Push
+       ============================================================ */
+
+    /* ─── State ───────────────────────────────────────────── */
+    let allRows = [];
+    let currentTab = 'daily';
+    // ── 双文件 Handle（各自独立，支持跨目录）──
+    let fileHandleSys = null;  // 系统厂修复率文件
+    let fileHandleAsh = null;  // ASH Repair Detail 文件
+    let fileHandle = null;  // 兼容旧引用，等于 fileHandleSys
+    let fileHandles = [];    // 兼容旧引用，聚合两个handle
+    let refreshTimer = null;
+    let currentRefreshMins = 5;
+    let currentDetailRows = [];
+    let lastPushDate = null;
+
+    const STORAGE_KEY = 'ash_repair_data_v2';
+    const BINDING_API = 'http://127.0.0.1:8787/api/bindings';
+    const SMT_REPAIRERS = ['周敏', '吴杰']; // DEMO 维修员（脱敏）
+    let xlsxReadyPromise = null;
+
+    function loadXlsxScript(src) {
+      return new Promise((resolve, reject) => {
+        const old = Array.from(document.scripts || []).find(s => s.src && s.src.endsWith(src.replace(/^\.\//, '')));
+        if (old && window.XLSX && window.XLSX.read) return resolve(window.XLSX);
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => window.XLSX && window.XLSX.read
+          ? resolve(window.XLSX)
+          : reject(new Error('XLSX库已加载但 window.XLSX 不可用: ' + src));
+        script.onerror = () => reject(new Error('XLSX库加载失败: ' + src));
+        document.head.appendChild(script);
+      });
+    }
+
+    async function ensureXlsxReady() {
+      if (window.XLSX && window.XLSX.read && window.XLSX.utils) return window.XLSX;
+      if (!xlsxReadyPromise) {
+        const sources = ['./libs/xlsx.full.min.js', '../libs/xlsx.full.min.js', 'libs/xlsx.full.min.js'];
+        xlsxReadyPromise = (async () => {
+          const errors = [];
+          for (const src of sources) {
+            try {
+              const lib = await loadXlsxScript(src);
+              if (lib && lib.read) return lib;
+            } catch (err) {
+              errors.push((err && err.message) || String(err));
+            }
+          }
+          throw new Error('XLSX库加载失败，请确认本地 libs/xlsx.full.min.js 存在。已尝试: ' + sources.join(', ') + '。详情: ' + errors.join('；'));
+        })();
+      }
+      return xlsxReadyPromise;
+    }
+
+    /* ─── DEMO 数据 ───────────────────────────────────────────
+       开箱即用的脱敏演示数据。未绑定任何真实文件时自动注入，
+       覆盖 修复率 / 待修 WIP / 不良现象 / 责任别 / 老化超期 等分析维度。
+       绑定真实 MES 文件后（processFile 按 _source 覆盖），演示数据自动被替换。 */
+    function buildDemoRepairRows() {
+      const base = new Date('2026-06-03'), dayMs = 86400000;
+      const fmt = d => { const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0'); return `${y}-${m}-${dd}`; };
+      const parts = ['KSK-100', 'ABC-200', 'XYZ-300', 'DEF-400', 'GHJ-500'];
+      const defects = ['不开机', '黑屏', '无显示', '自动重启', '触摸失灵', 'USB无法识别', '风扇异响'];
+      const reasons = ['元件虚焊', '主板短路', '接口氧化', '固件异常', '电源模块故障'];
+      const resp = ['制造', '来料', '设计', '测试'];
+      const locs = ['U12', 'J3', 'C45', 'U7', 'R23', 'Q9'];
+      const depts = [
+        { dept: 'sys', src: 'sys', people: ['赵建国', '陈志远'] },
+        { dept: 'smt', src: 'elec', people: SMT_REPAIRERS },
+        { dept: 'elec', src: 'elec', people: ['张磊', '李娜', '王浩'] },
+      ];
+      const rows = []; let seq = 0;
+      const mk = (D, inD, status, outOffset, i) => {
+        seq++;
+        let outD = null;
+        if (status === '完成') outD = new Date(Math.min(inD.getTime() + outOffset * dayMs, base.getTime()));
+        rows.push({
+          workOrder: `WO-${fmt(inD).replace(/-/g, '').slice(2)}-${String(seq).padStart(3, '0')}`,
+          partNo: parts[(seq + i) % parts.length],
+          sn: 'SN' + String(100000 + (seq * 9173) % 900000),
+          inputTime: inD, outputTime: outD,
+          status, repairer: D.people[seq % D.people.length],
+          errorDesc: defects[(seq + i) % defects.length],
+          reason: reasons[seq % reasons.length],
+          respDept: resp[seq % resp.length],
+          location: locs[seq % locs.length],
+          rawInputDate: fmt(inD), rawOutputDate: outD ? fmt(outD) : null,
+          _source: D.src, _dept: D.dept
+        });
+      };
+      depts.forEach((D, di) => {
+        for (let back = 6; back >= 0; back--) {
+          const inD = new Date(base.getTime() - back * dayMs);
+          const perDay = back === 0 ? 4 : (back <= 2 ? 3 : 2);
+          for (let k = 0; k < perDay; k++) {
+            const roll = (di * 5 + back * 3 + k) % 10;
+            let status;
+            if (back <= 1) status = roll < 3 ? '待修' : (roll === 9 ? '其它' : '完成');
+            else status = roll === 9 ? '其它' : '完成';
+            mk(D, inD, status, 1 + (roll % 2), k);
+          }
+        }
+        // 每个部门 1 条超期未修（老化预警）
+        mk(D, new Date(base.getTime() - (8 + di) * dayMs), '待修', 0, di);
+      });
+      return rows;
+    }
+
+    /* ─── Boot ────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!window.RDC_DISABLE_EFFECTS) initBgParticles();
+      startClock();
+      loadFromStorage();
+      // 未绑定真实文件且无缓存时，注入脱敏演示数据（仅内存，不写入 localStorage）
+      if (!allRows.length) { allRows = buildDemoRepairRows(); normalizeRows(); renderAll(); }
+      document.getElementById('fileInput').addEventListener('change', onFileChange);
+
+      // Load AI configs
+
+      // Load Teams & Refresh configs
+      loadTeamsConfig();
+
+      updateReportTabLabel();
+      restoreBoundFile();
+
+      // Rerender layout responsive canvas
+      let resizeTo;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTo);
+        resizeTo = setTimeout(() => { renderWipTrend(); }, 300);
+      });
+    });
+
+    /* ══════════════════════════════════════════════════
+       BACKGROUND PARTICLE SYSTEM
+    ══════════════════════════════════════════════════ */
+    function initBgParticles() {
+      const canvas = document.getElementById('bgCanvas');
+      if (!canvas || !canvas.getContext) return; // 背景画布缺失时跳过特效，不阻断看板启动
+      const ctx = canvas.getContext('2d');
+      let W, H, dots = [];
+
+      function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      function mkDot() {
+        return {
+          x: Math.random() * W, y: Math.random() * H,
+          r: Math.random() * 1.5 + .3,
+          vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35,
+          a: Math.random()
+        };
+      }
+      for (let i = 0; i < 130; i++) dots.push(mkDot());
+
+      function frame() {
+        ctx.clearRect(0, 0, W, H);
+        dots.forEach(d => {
+          d.x += d.vx; d.y += d.vy;
+          if (d.x < 0) d.x = W; if (d.x > W) d.x = 0;
+          if (d.y < 0) d.y = H; if (d.y > H) d.y = 0;
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(0,200,255,${d.a * .6})`;
+          ctx.fill();
+        });
+        for (let i = 0; i < dots.length; i++) {
+          for (let j = i + 1; j < dots.length; j++) {
+            const dx = dots[i].x - dots[j].x, dy = dots[i].y - dots[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 120) {
+              ctx.beginPath();
+              ctx.moveTo(dots[i].x, dots[i].y);
+              ctx.lineTo(dots[j].x, dots[j].y);
+              ctx.strokeStyle = `rgba(0,150,255,${.18 * (1 - dist / 120)})`;
+              ctx.lineWidth = .6;
+              ctx.stroke();
+            }
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+      frame();
+    }
+
+    /* ══════════════════════════════════════════════════
+       CLOCK
+    ══════════════════════════════════════════════════ */
+    function startClock() {
+      function tick() {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toTimeString().slice(0, 8);
+        document.getElementById('date').textContent = now.toISOString().slice(0, 10);
+      }
+      tick(); setInterval(tick, 1000);
+    }
+
+    /* ══════════════════════════════════════════════════
+       FILE IMPORT & BINDING (MES)
+    ══════════════════════════════════════════════════ */
+    function onFileChange(e) {
+      const files = e.target.files;
+      if (!files || !files.length) return;
+      Array.from(files).forEach(file => {
+        const name = file.name.toLowerCase();
+        const source = (name.includes('系统厂') || name.includes('assembly')) ? 'sys' : 'elec';
+        processFile(file, source);
+      });
+      e.target.value = '';
+    }
+
+    function processFile(file, source) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async ev => {
+          try {
+            const raw = await readRepairFileRows(file, ev.target.result);
+            const added = parseRows(raw, source);
+            normalizeRows();
+            saveToStorage();
+            renderAll();
+            checkAndPushRepeatDefects();
+            // 根据 source 更新对应绑定状态 UI，并持久化文件名
+            if (source === 'sys') { updateBindUISys(file.name); saveFileNames('sys', file.name); }
+            else { updateBindUIAsh(file.name); saveFileNames('elec', file.name); }
+            showToast(`✅ ${file.name} 读取 ${added} 条记录 - ` + new Date().toLocaleTimeString('zh-CN'));
+            resolve();
+          } catch (err) {
+            console.error('[repair-rate] parse failed', err);
+            showToast('❌ 文件绑定失败: ' + ((err && err.message) || err));
+            reject(err);
+          }
+        };
+        reader.onerror = err => {
+          console.error('[repair-rate] file read failed', err);
+          reject(err);
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    async function bindFileSys() { await pickAndBindRepairFile('sys'); }
+
+    async function unbindFileSys() {
+      fileHandleSys = null; fileHandle = null;
+      updateBindUISys(null);
+      try { const db = await openIDB(); db.transaction('store', 'readwrite').objectStore('store').delete('sysFileHandle'); } catch (e) { }
+      await _mergeAndRender();
+      if (!fileHandleSys && !fileHandleAsh) stopAutoRefresh();
+      showToast('已解除系统厂文件绑定');
+    }
+
+    // ── ASH 绑定 ──
+    async function bindFileAsh() { await pickAndBindRepairFile('elec'); }
+
+    async function unbindFileAsh() {
+      fileHandleAsh = null;
+      updateBindUIAsh(null);
+      try { const db = await openIDB(); db.transaction('store', 'readwrite').objectStore('store').delete('ashFileHandle'); } catch (e) { }
+      await _mergeAndRender();
+      if (!fileHandleSys && !fileHandleAsh) stopAutoRefresh();
+      showToast('已解除 ASH 文件绑定');
+    }
+
+    // 兼容旧调用
+    async function bindFile() { await bindFileAsh(); }
+    async function unbindFile() { await unbindFileAsh(); await unbindFileSys(); }
+
+    async function pickAndBindRepairFile(source) {
+      if (window.showOpenFilePicker) {
+        try {
+          const [handle] = await window.showOpenFilePicker({
+            multiple: false,
+            types: [{
+              description: 'MES 修复率文件',
+              accept: {
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                'application/vnd.ms-excel': ['.xls'],
+                'text/csv': ['.csv']
+              }
+            }],
+            excludeAcceptAllOption: false
+          });
+          if (!handle) return;
+          if (!await verifyPermission(handle, false)) throw new Error('未授权读取共享文件');
+          const file = await handle.getFile();
+          if (source === 'sys') { fileHandleSys = handle; fileHandle = handle; await saveRepairHandle('sysFileHandle', handle); }
+          else { fileHandleAsh = handle; await saveRepairHandle('ashFileHandle', handle); }
+          await saveRepairServerBinding(source, file);
+          await processFile(file, source);
+          startAutoRefresh();
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;
+          console.warn('[repair-rate] native picker failed, fallback to input', e);
+          showToast('⚠ 原路径授权失败，改用普通文件导入: ' + ((e && e.message) || e));
+        }
+      }
+      _pickFileInput(source, async file => {
+        try { await processFile(file, source); }
+        catch (_) { }
+      });
+    }
+
+    async function saveRepairHandle(key, handle) {
+      try {
+        const db = await openIDB();
+        db.transaction('store', 'readwrite').objectStore('store').put(handle, key);
+      } catch (e) {
+        console.warn('[repair-rate] save handle failed', e);
+      }
+    }
+
+    function arrayBufferFromBase64(b64) {
+      const bin = atob(b64 || '');
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    async function saveRepairServerBinding(source, file) {
+      if (!window.RDC_ENABLE_BINDING_SERVER) return; // 公开 Demo 不调用内网绑定服务，需要时在内网置位此开关
+      const path = file && file.path;
+      if (!path || /fakepath/i.test(path)) return;
+      try {
+        await fetch(BINDING_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dashboardId: source === 'sys' ? 'repair_rate_sys' : 'repair_rate_elec',
+            name: file.name || '',
+            path,
+            enabled: true
+          })
+        });
+      } catch (_) {}
+    }
+
+    async function restoreRepairServerBinding(source) {
+      if (!window.RDC_ENABLE_BINDING_SERVER) return false; // 公开 Demo 不调用内网绑定服务
+      try {
+        const dashboardId = source === 'sys' ? 'repair_rate_sys' : 'repair_rate_elec';
+        const res = await fetch(BINDING_API + '/read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dashboardId })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok) {
+          if (data && data.offline) showToast('⚠ MES共享路径暂不可访问，绑定已保留');
+          return false;
+        }
+        const file = new File([arrayBufferFromBase64(data.contentBase64)], data.name || 'MES修复率文件.xlsx');
+        await processFile(file, source);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    // ── 合并渲染 ──
+    async function _mergeAndRender() {
+      // 没有任何 handle 时不清空数据，直接返回（input方式绑定后handle为null）
+      let ok = 0;
+      if (!fileHandleSys && !fileHandleAsh) {
+        if (await restoreRepairServerBinding('sys')) ok++;
+        if (await restoreRepairServerBinding('elec')) ok++;
+        if (!ok) renderAll();
+        return;
+      }
+      if (fileHandleSys && await verifyPermission(fileHandleSys, false)) {
+        try { await processFile(await fileHandleSys.getFile(), 'sys'); ok++; } catch (e) { console.error('[repair-rate] refresh sys failed', e); showToast('⚠ 系统厂共享路径暂不可访问，已保留历史数据'); }
+      }
+      if (fileHandleAsh && await verifyPermission(fileHandleAsh, false)) {
+        try { await processFile(await fileHandleAsh.getFile(), 'elec'); ok++; } catch (e) { console.error('[repair-rate] refresh ash failed', e); showToast('⚠ ASH共享路径暂不可访问，已保留历史数据'); }
+      }
+      if (!fileHandleSys && await restoreRepairServerBinding('sys')) ok++;
+      if (!fileHandleAsh && await restoreRepairServerBinding('elec')) ok++;
+      if (!ok) renderAll();
+    }
+
+    // ── UI 状态 ──
+    function updateBindUISys(filename) {
+      const dot = document.getElementById('bind-dot-sys');
+      const name = document.getElementById('bind-name-sys');
+      const btn = document.getElementById('btn-unbind-sys');
+      if (filename) {
+        dot.classList.add('active', 'online');
+        name.textContent = filename; name.title = filename;
+        btn.style.display = 'inline-block';
+      } else {
+        dot.classList.remove('active', 'online');
+        name.textContent = '系统厂'; name.title = '';
+        btn.style.display = 'none';
+      }
+    }
+
+    function updateBindUIAsh(filename) {
+      const dot = document.getElementById('bind-dot-ash');
+      const name = document.getElementById('bind-name-ash');
+      const btn = document.getElementById('btn-unbind-ash');
+      if (filename) {
+        dot.classList.add('active', 'online');
+        name.textContent = filename; name.title = filename;
+        btn.style.display = 'inline-block';
+      } else {
+        dot.classList.remove('active', 'online');
+        name.textContent = 'ASH'; name.title = '';
+        btn.style.display = 'none';
+      }
+    }
+
+    // 兼容旧updateBindUI调用
+    function updateBindUI(filename) {
+      updateBindUIAsh(filename);
+    }
+
+    function updateRefreshInterval() {
+      const val = parseInt(document.getElementById('refresh-mins').value) || 5;
+      currentRefreshMins = Math.max(1, Math.min(60, val));
+      localStorage.setItem('ash_refresh_mins', currentRefreshMins);
+      if (refreshTimer) {
+        startAutoRefresh(); // reset timer
+      }
+    }
+
+    function startAutoRefresh() {
+      // 没有任何 handle 时不启动自动刷新（input方式绑定，无法后台重读文件）
+      if (!fileHandleSys && !fileHandleAsh) return;
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(async () => {
+        await _mergeAndRender();
+      }, currentRefreshMins * 60000);
+    }
+
+    function stopAutoRefresh() {
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+
+    // IDB polyfill for handle
+    function openIDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('AshRepairDB', 1);
+        req.onupgradeneeded = e => { e.target.result.createObjectStore('store'); };
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e);
+      });
+    }
+
+    async function restoreBoundFile() {
+      try {
+        if (!window.showOpenFilePicker) return;
+        const db = await openIDB();
+        const store = db.transaction('store').objectStore('store');
+
+        // 恢复系统厂
+        store.get('sysFileHandle').onsuccess = async e => {
+          const h = e.target.result;
+          if (h) {
+            fileHandleSys = h; fileHandle = h;
+            const saved = localStorage.getItem('ash_fname_sys');
+            if (saved) updateBindUISys(saved);
+            const perm = typeof h.queryPermission === 'function' ? await h.queryPermission({ mode: 'read' }) : 'granted';
+            if (perm === 'granted') {
+              try {
+                const f = await h.getFile();
+                updateBindUISys(f.name);
+                await processFile(f, 'sys');
+                startAutoRefresh();
+              } catch (err) {
+                console.error('[repair-rate] restore sys failed', err);
+                showToast('⚠ 系统厂共享路径暂不可访问，绑定已保留');
+              }
+            } else {
+              showToast('⚠ 系统厂文件需要重新授权，绑定记录已保留');
+            }
+          }
+        };
+
+        // 恢复 ASH（稍微延迟避免IDB事务冲突）
+        setTimeout(async () => {
+          try {
+            const db2 = await openIDB();
+            db2.transaction('store').objectStore('store').get('ashFileHandle').onsuccess = async e => {
+              const h = e.target.result;
+              if (h) {
+                fileHandleAsh = h;
+                const saved = localStorage.getItem('ash_fname_elec');
+                if (saved) updateBindUIAsh(saved);
+                const perm = typeof h.queryPermission === 'function' ? await h.queryPermission({ mode: 'read' }) : 'granted';
+                if (perm === 'granted') {
+                  try {
+                    const f = await h.getFile();
+                    updateBindUIAsh(f.name);
+                    await processFile(f, 'elec');
+                    startAutoRefresh();
+                  } catch (err) {
+                    console.error('[repair-rate] restore ash failed', err);
+                    showToast('⚠ ASH共享路径暂不可访问，绑定已保留');
+                  }
+                } else {
+                  showToast('⚠ ASH文件需要重新授权，绑定记录已保留');
+                }
+              }
+            };
+          } catch (e) { }
+        }, 300);
+
+        // 兼容旧单handle key
+        store.get('boundFileHandle').onsuccess = async e => {
+          const h = e.target.result;
+          if (h && !fileHandleAsh && await verifyPermission(h, false)) {
+            fileHandleAsh = h;
+            const f = await h.getFile();
+            updateBindUIAsh(f.name);
+            await processFile(f, 'elec');
+            startAutoRefresh();
+          }
+        };
+        setTimeout(() => {
+          if (!fileHandleSys) restoreRepairServerBinding('sys').catch(() => {});
+          if (!fileHandleAsh) restoreRepairServerBinding('elec').catch(() => {});
+        }, 800);
+      } catch (e) { console.error('restoreBoundFile', e); }
+    }
+
+    // 旧函数占位，已拆分
+    async function _restoreHandles() { }
+
+    async function verifyPermission(fileHandle, readWrite) {
+      const opts = { mode: readWrite ? 'readwrite' : 'read' };
+      if ((await fileHandle.queryPermission(opts)) === 'granted') return true;
+      try {
+        if ((await fileHandle.requestPermission(opts)) === 'granted') return true;
+      } catch (e) { return false; }
+      return false;
+    }
+
+    /* ══════════════════════════════════════════════════
+       PARSING
+       系统厂(sys): 进[7]不良时间(str) 出[12]維修時間(str) 状态[10] 员工[11]
+                   描述[5] 原因[13] 工单[0] 料号[1] 序号[2] 责任[14] 维修位置[17]
+       电子厂/SMT: 进[11]測試錯誤時間 出[15]維修時間 状态[13] 员工[14]
+                  描述[4] 原因[16] 工单[0] 料号[1] 序号[2] 责任[17] 维修位置[20]
+    ══════════════════════════════════════════════════ */
+    async function readRepairFileRows(file, buffer) {
+      const name = (file && file.name || '').toLowerCase();
+      if (name.endsWith('.csv')) {
+        const text = decodeTextBuffer(buffer);
+        return parseCsvRows(text);
+      }
+      const XLSXLib = await ensureXlsxReady();
+      const wb = XLSXLib.read(buffer, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      return XLSXLib.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+    }
+
+    function decodeTextBuffer(buffer) {
+      try { return new TextDecoder('utf-8', { fatal: true }).decode(buffer); }
+      catch (_) { return new TextDecoder('gb18030').decode(buffer); }
+    }
+
+    function parseCsvRows(text) {
+      const lines = String(text || '').replace(/^\ufeff/, '').split(/\r?\n/);
+      const rows = [];
+      lines.forEach(line => {
+        const row = [];
+        let cell = '', quote = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (quote) {
+            if (ch === '"' && line[i + 1] === '"') { cell += '"'; i++; }
+            else if (ch === '"') quote = false;
+            else cell += ch;
+          } else {
+            if (ch === '"') quote = true;
+            else if (ch === ',') { row.push(cell); cell = ''; }
+            else cell += ch;
+          }
+        }
+        row.push(cell);
+        if (row.some(c => String(c || '').trim() !== '')) rows.push(row);
+      });
+      return rows;
+    }
+
+    function normHeader(v) {
+      return String(v || '')
+        .replace(/\u3000/g, ' ')
+        .replace(/[（]/g, '(').replace(/[）]/g, ')')
+        .replace(/[\r\n\t ]+/g, '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function findRepairCol(headers, aliases, fallback) {
+      const norm = headers.map(normHeader);
+      for (const a of aliases) {
+        const na = normHeader(a);
+        const idx = norm.findIndex(h => h === na);
+        if (idx >= 0) return idx;
+      }
+      for (const a of aliases) {
+        const na = normHeader(a);
+        const idx = norm.findIndex(h => h.includes(na) || na.includes(h));
+        if (idx >= 0) return idx;
+      }
+      return fallback;
+    }
+
+    function parseRows(raw, source) {
+      if (!raw || raw.length < 2) throw new Error('文件为空或没有可解析的数据行');
+
+      let headerIdx = 0;
+      for (let i = 0; i < Math.min(15, raw.length); i++) {
+        const r = raw[i];
+        if (r && r.some(c => /工單|工单|序號|序号|料號|料号|維修|维修|不良|錯誤|错误/.test(String(c || '')))) {
+          headerIdx = i; break;
+        }
+      }
+      const headers = (raw[headerIdx] || []).map(c => String(c || '').trim());
+
+      let cols;
+      if (source === 'sys') {
+        cols = {
+          workOrder: 0, partNo: 1, sn: 2, inputTime: 7, outputTime: 12,
+          status: 10, repairer: 11, errorDesc: 5, reason: 13, respDept: 14, location: 17
+        };
+      } else {
+        cols = {
+          workOrder: 0, partNo: 1, sn: 2, inputTime: 11, outputTime: 15,
+          status: 13, repairer: 14, errorDesc: 4, reason: 16, respDept: 17, location: 20
+        };
+      }
+      cols = {
+        workOrder: findRepairCol(headers, ['工單','工单','工单号','維修單號','维修单号','單號','单号'], cols.workOrder),
+        partNo: findRepairCol(headers, ['料號','料号','物料号','物料编码','品號','品号'], cols.partNo),
+        sn: findRepairCol(headers, ['序號','序号','SN','條碼','条码','機號','机号'], cols.sn),
+        inputTime: findRepairCol(headers, ['不良時間','不良时间','入庫日期','入库日期','進板時間','进板时间','收件時間','收件时间','測試錯誤時間','测试错误时间','测试异常时间'], cols.inputTime),
+        outputTime: findRepairCol(headers, ['維修時間','维修时间','完成日期','完成時間','完成时间','出板時間','出板时间','修復時間','修复时间'], cols.outputTime),
+        status: findRepairCol(headers, ['狀態','状态','維修狀態','维修状态','處理狀態','处理状态'], cols.status),
+        repairer: findRepairCol(headers, ['維修員工號','维修员工号','維修員','维修员','維修人員','维修人员','维修人','員工','员工','姓名'], cols.repairer),
+        errorDesc: findRepairCol(headers, ['不良描述','故障描述','錯誤描述','错误描述','測試錯誤','测试错误','维修描述'], cols.errorDesc),
+        reason: findRepairCol(headers, ['原因','維修原因','维修原因','不良原因','故障原因'], cols.reason),
+        respDept: findRepairCol(headers, ['責任','责任','責任單位','责任单位','責任部门','责任部门'], cols.respDept),
+        location: findRepairCol(headers, ['維修位置','维修位置','位置','故障位置'], cols.location)
+      };
+      const missing = [];
+      if (cols.workOrder < 0 && cols.sn < 0) missing.push('工单/序号');
+      if (cols.inputTime < 0 && cols.outputTime < 0) missing.push('入库/维修时间');
+      if (missing.length) throw new Error('MES修复率字段缺失: ' + missing.join('、') + '。已识别字段: ' + headers.filter(Boolean).join(' | '));
+
+      const newRows = [];
+      for (let i = headerIdx + 1; i < raw.length; i++) {
+        const r = raw[i];
+        if (!r || r.length < 3) continue;
+
+        const workOrder = String(r[cols.workOrder] || '').trim();
+        const partNo = String(r[cols.partNo] || '').trim();
+        const sn = String(r[cols.sn] || '').trim();
+        const status = String(r[cols.status] || '').trim();
+        const repairer = String(r[cols.repairer] || '').trim();
+        const errorDesc = String(r[cols.errorDesc] || '').trim();
+        const reason = String(r[cols.reason] || '').trim();
+        const respDept = String(r[cols.respDept] || '').trim();
+        const location = String(r[cols.location] || '').trim();
+        const inputTime = parseDate(r[cols.inputTime]);
+        const outputTime = parseDate(r[cols.outputTime]);
+
+        if (!workOrder && !sn) continue;
+        if (!inputTime && !outputTime) continue;
+
+        newRows.push({
+          workOrder, partNo, sn, inputTime, outputTime,
+          status, repairer, errorDesc, reason, respDept, location,
+          rawInputDate: inputTime ? fmtDate(inputTime) : null,
+          rawOutputDate: outputTime ? fmtDate(outputTime) : null,
+          _source: source || 'elec',
+          _dept: source === 'sys' ? 'sys'
+            : SMT_REPAIRERS.includes(repairer) ? 'smt'
+              : 'elec',
+        });
+      }
+
+      if (!newRows.length) throw new Error('未解析到有效修复率记录。已识别字段: ' + headers.filter(Boolean).join(' | '));
+
+      allRows = allRows.filter(r => r._source !== source);
+
+      // 不去重，直接按 source 隔离追加（MES数据每次覆盖同一个文件，重新绑定前先清空）
+      // 仅在同一次 processFile 中去重工单+序号，防止同一文件内重复行
+      const keySet = new Set();
+      newRows.forEach(r => {
+        const key = (r._source || '') + '|' + r.sn + '|' + r.workOrder;
+        if (!keySet.has(key)) {
+          keySet.add(key);
+          // 更新已有行 or 追加
+          const idx = allRows.findIndex(x => x._source === r._source && x.sn === r.sn && x.workOrder === r.workOrder);
+          if (idx >= 0) allRows[idx] = r;
+          else allRows.push(r);
+        }
+      });
+      return newRows.length;
+    }
+
+    function parseDate(v) {
+      if (!v) return null;
+      if (v instanceof Date) return isNaN(v) ? null : v;
+      if (typeof v === 'number') {
+        try {
+          const d = XLSX.SSF.parse_date_code(v);
+          if (d) return new Date(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, d.S || 0);
+        } catch (e) { }
+      }
+      const s = String(v).trim();
+      if (!s || s === '-' || s === 'None') return null;
+      // 兼容 "2026-01-22 11:05" 字符串（系统厂）
+      const d = new Date(s.replace(' ', 'T').replace(/\//g, '-'));
+      if (!isNaN(d)) return d;
+      return null;
+    }
+
+    function fmtDate(d) {
+      if (!d) return null;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function normalizeRepairStatus(status) {
+      const s = String(status || '').trim();
+      if (!s) return '待修';
+      if (/完成|瀹屾垚|已修|已完成|OK|PASS|CLOSE|DONE/i.test(s)) return '完成';
+      if (/待修|寰呬慨|未修|维修中|处理中|OPEN|WIP|WAIT/i.test(s)) return '待修';
+      if (/其它|其他|鍏跺畠|OTHER/i.test(s)) return '其它';
+      return '其它';
+    }
+
+    function isDoneRepairRow(r) {
+      return normalizeRepairStatus(r && r.status) === '完成';
+    }
+
+    function isWipRepairRow(r) {
+      return normalizeRepairStatus(r && r.status) === '待修';
+    }
+
+    function isOtherRepairRow(r) {
+      return normalizeRepairStatus(r && r.status) === '其它';
+    }
+
+    function normalizeRows(rows = allRows) {
+      if (!Array.isArray(rows)) return [];
+      rows.forEach(r => {
+        if (!r) return;
+        r.inputTime = parseDate(r.inputTime);
+        r.outputTime = parseDate(r.outputTime);
+        r.rawInputDate = r.inputTime ? fmtDate(r.inputTime) : (r.rawInputDate || null);
+        r.rawOutputDate = r.outputTime ? fmtDate(r.outputTime) : (r.rawOutputDate || null);
+        r._statusNorm = normalizeRepairStatus(r.status);
+        if (!r.status) r.status = r._statusNorm;
+        r._source = r._source || 'elec';
+        r._dept = r._source === 'sys' ? 'sys'
+          : SMT_REPAIRERS.includes(r.repairer) ? 'smt'
+            : (r._dept || 'elec');
+      });
+      return rows;
+    }
+
+    function getAllRepairDates() {
+      return [...new Set(allRows.flatMap(r => [r.rawInputDate, r.rawOutputDate]).filter(Boolean))].sort();
+    }
+
+    function getLatestRepairDate() {
+      const dates = getAllRepairDates();
+      return dates.length ? dates[dates.length - 1] : fmtDate(new Date());
+    }
+
+    function getRowsForCurrentScope() {
+      const latest = getLatestRepairDate();
+      if (!latest) return allRows.slice();
+      if (currentTab === 'daily') {
+        return allRows.filter(r => r.rawInputDate === latest || r.rawOutputDate === latest);
+      }
+      if (currentTab === 'weekly') {
+        const end = parseDate(latest) || new Date();
+        const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6);
+        const startStr = fmtDate(start);
+        return allRows.filter(r =>
+          ((r.rawInputDate || '') >= startStr && (r.rawInputDate || '') <= latest) ||
+          ((r.rawOutputDate || '') >= startStr && (r.rawOutputDate || '') <= latest)
+        );
+      }
+      if (currentTab === 'monthly') {
+        const prefix = latest.slice(0, 7);
+        return allRows.filter(r => (r.rawInputDate || '').startsWith(prefix) || (r.rawOutputDate || '').startsWith(prefix));
+      }
+      const yr = latest.slice(0, 4);
+      return allRows.filter(r => (r.rawInputDate || '').startsWith(yr) || (r.rawOutputDate || '').startsWith(yr));
+    }
+
+    /* ══════════════════════════════════════════════════
+       STORAGE
+    ══════════════════════════════════════════════════ */
+    function saveToStorage() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allRows)); } catch (e) { }
+    }
+
+    function saveFileNames(source, name) {
+      try { localStorage.setItem('ash_fname_' + source, name); } catch (e) { }
+    }
+
+    function loadFromStorage() {
+      try {
+        const s = localStorage.getItem(STORAGE_KEY);
+        if (s) {
+          allRows = JSON.parse(s);
+          allRows.forEach(r => {
+            if (r.inputTime) r.inputTime = new Date(r.inputTime);
+            if (r.outputTime) r.outputTime = new Date(r.outputTime);
+          });
+          normalizeRows();
+          renderAll();
+          // 恢复绑定 UI 状态（集成看板重载 iframe 后让界面显示正确状态）
+          const sysName = localStorage.getItem('ash_fname_sys');
+          const elecName = localStorage.getItem('ash_fname_elec');
+          if (sysName) updateBindUISys(sysName);
+          if (elecName) updateBindUIAsh(elecName);
+        }
+      } catch (e) { }
+    }
+
+    /* ══════════════════════════════════════════════════
+       TAB LOGIC
+    ══════════════════════════════════════════════════ */
+    function getFilteredRows() {
+      const today = getLatestRepairDate() || fmtDate(new Date());
+      const now = parseDate(today) || new Date();
+
+      if (currentTab === 'daily') return allRows.filter(r => r.rawInputDate === today || r.rawOutputDate === today);
+      if (currentTab === 'weekly') {
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+        const startStr = fmtDate(start);
+        return allRows.filter(r =>
+          ((r.rawInputDate || '') >= startStr && (r.rawInputDate || '') <= today) ||
+          ((r.rawOutputDate || '') >= startStr && (r.rawOutputDate || '') <= today)
+        );
+      }
+      if (currentTab === 'monthly') {
+        const prefix = today.slice(0, 7);
+        return allRows.filter(r => (r.rawInputDate || '').startsWith(prefix) || (r.rawOutputDate || '').startsWith(prefix));
+      }
+      const yr = today.slice(0, 4);
+      return allRows.filter(r => (r.rawInputDate || '').startsWith(yr) || (r.rawOutputDate || '').startsWith(yr));
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      updateReportTabLabel();
+      renderAll();
+    }
+
+    function updateReportTabLabel() {
+      const now = new Date();
+      const labels = { daily: '今日 ' + fmtDate(now), weekly: '本周', monthly: '本月 ' + fmtDate(now).slice(0, 7), yearly: '本年 ' + fmtDate(now).slice(0, 4) };
+      const uiLabels = { daily: '日报', weekly: '周报', monthly: '月报', yearly: '年报' };
+      const tabInfo = document.getElementById('tab-info');
+      const tabLabel = document.getElementById('report-tab-label');
+      if (tabInfo) tabInfo.textContent = labels[currentTab] || '';
+      if (tabLabel) tabLabel.textContent = uiLabels[currentTab] || '';
+    }
+
+    /* ══════════════════════════════════════════════════
+       RENDER LOGIC
+    ══════════════════════════════════════════════════ */
+    function renderAll() {
+      normalizeRows();
+      renderKPI();
+      renderCharts();
+      renderTable();
+    }
+
+    /* ── 三部门卡片 ── */
+    function renderDeptCards() {
+      const today = getLatestRepairDate() || fmtDate(new Date());
+      const monthPrefix = today.slice(0, 7);
+
+      ['sys', 'smt', 'elec'].forEach(dept => {
+        const rows = allRows.filter(r => r._dept === dept);
+
+        // 进板数 = 入库时间在范围内的所有行
+        // 出板数 = 入库时间在范围内 且 状态=完成
+        // 今日WIP = 今天入库 且 状态=待修（或其它for sys）
+        // 本月WIP = 本月入库 且 状态=待修（或其它）
+        const isWip = (r) => dept === 'sys'
+          ? (isWipRepairRow(r) || isOtherRepairRow(r))
+          : isWipRepairRow(r);
+
+        const dayIn = rows.filter(r => r.rawInputDate === today).length;
+        const dayOut = rows.filter(r => r.rawInputDate === today && isDoneRepairRow(r)).length;
+        const dayRate = dayIn > 0 ? Math.round(dayOut / dayIn * 100) : 0;
+        const dayWip = rows.filter(r => r.rawInputDate === today && isWip(r)).length;
+
+        const monIn = rows.filter(r => (r.rawInputDate || '').startsWith(monthPrefix)).length;
+        const monOut = rows.filter(r => (r.rawInputDate || '').startsWith(monthPrefix) && isDoneRepairRow(r)).length;
+        const monRate = monIn > 0 ? Math.round(monOut / monIn * 100) : 0;
+        const monWip = rows.filter(r => (r.rawInputDate || '').startsWith(monthPrefix) && isWip(r)).length;
+
+        const card = document.getElementById('dept-' + dept);
+        if (!card) return;
+
+        setText(card, '.dept-day-in', dayIn);
+        setText(card, '.dept-day-out', dayOut);
+        setRate(card, '.dept-day-rate', dayRate, getDayRedline(dept));
+        setText(card, '.dept-mon-in', monIn);
+        setText(card, '.dept-mon-out', monOut);
+        setRate(card, '.dept-mon-rate', monRate, getMonRedline(dept));
+
+        // 今日WIP显示在今日侧，本月WIP显示在本月侧
+        const dayWipEl = card.querySelector('[data-side="today"] .dept-wip-val');
+        if (dayWipEl) {
+          dayWipEl.textContent = dayWip;
+          dayWipEl.onclick = () => openDeptDetail(dept, `今日待修WIP(${today})`,
+            r => r._dept === dept && r.rawInputDate === today && isWip(r));
+        }
+        const monWipEl = card.querySelector('[data-side="month"] .dept-wip-val');
+        if (monWipEl) {
+          monWipEl.textContent = monWip;
+          monWipEl.onclick = () => openDeptDetail(dept, `本月待修WIP(${monthPrefix})`,
+            r => r._dept === dept && (r.rawInputDate || '').startsWith(monthPrefix) && isWip(r));
+        }
+
+        const dayInEl = card.querySelector('[data-side="today"] .dept-day-in');
+        if (dayInEl) dayInEl.onclick = () => openDeptDetail(dept, `今日进板(${today})`,
+          r => r._dept === dept && r.rawInputDate === today);
+
+        const dayOutEl = card.querySelector('[data-side="today"] .dept-day-out');
+        if (dayOutEl) dayOutEl.onclick = () => openDeptDetail(dept, `今日出板(${today})`,
+          r => r._dept === dept && r.rawInputDate === today && isDoneRepairRow(r));
+
+        const monInEl = card.querySelector('[data-side="month"] .dept-mon-in');
+        if (monInEl) monInEl.onclick = () => openDeptDetail(dept, `本月进板(${monthPrefix})`,
+          r => r._dept === dept && (r.rawInputDate || '').startsWith(monthPrefix));
+
+        const monOutEl = card.querySelector('[data-side="month"] .dept-mon-out');
+        if (monOutEl) monOutEl.onclick = () => openDeptDetail(dept, `本月出板(${monthPrefix})`,
+          r => r._dept === dept && (r.rawInputDate || '').startsWith(monthPrefix) && isDoneRepairRow(r));
+      });
+
+      updateAlertTicker();
+    }
+
+    function setText(card, sel, val) {
+      const el = card.querySelector(sel);
+      if (el) el.textContent = val;
+    }
+
+    function setRate(card, sel, rate, redline) {
+      const el = card.querySelector(sel);
+      if (!el) return;
+      el.textContent = rate + '%';
+      el.classList.remove('rate-warn', 'rate-bad');
+      if (rate < redline * 0.85) el.classList.add('rate-bad');
+      else if (rate < redline) el.classList.add('rate-warn');
+    }
+
+    function getDayRedline(dept) { return { sys: 60, smt: 90, elec: 80 }[dept] || 60; }
+    function getMonRedline(dept) { return { sys: 70, smt: 98, elec: 90 }[dept] || 70; }
+
+    /* ── 部门明细弹窗 ── */
+    const DEPT_LABELS = { sys: '系统厂', smt: 'SMT产线', elec: '电子厂' };
+
+    function openDeptDetail(dept, title, filterFn) {
+      const rows = allRows.filter(filterFn);
+      currentDetailRows = rows;
+
+      document.getElementById('detail-title').textContent = `【${DEPT_LABELS[dept]}】${title}`;
+      document.getElementById('detail-count').textContent = rows.length + ' 条记录';
+
+      // 根据部门决定表头和字段
+      const isSys = dept === 'sys';
+      const thead = document.getElementById('detail-thead-row');
+      if (thead) {
+        thead.innerHTML = isSys
+          ? '<th>工单</th><th>机器料号</th><th>序号</th><th>维修员</th><th>不良描述</th><th>不良原因</th><th>维修位置</th><th>不良时间</th><th>维修时间</th><th>状态</th>'
+          : '<th>工单</th><th>板卡料号</th><th>序号</th><th>维修员</th><th>错误描述</th><th>原因</th><th>责任别</th><th>维修位置</th><th>进板时间</th><th>出板时间</th><th>状态</th>';
+      }
+
+      const tbody = document.getElementById('detail-tbody');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--t3)">暂无数据</td></tr>';
+      } else {
+        tbody.innerHTML = rows.map(r => isSys ? `
+      <tr>
+        <td>${r.workOrder || '--'}</td><td>${r.partNo || '--'}</td><td>${r.sn || '--'}</td>
+        <td>${r.repairer || '--'}</td><td>${r.errorDesc || '--'}</td><td>${r.reason || '--'}</td>
+        <td>${r.location || '--'}</td><td>${r.rawInputDate || '--'}</td><td>${r.rawOutputDate || '--'}</td>
+        <td class="${isDoneRepairRow(r) ? 'status-done' : isWipRepairRow(r) ? 'status-wip' : ''}">${r.status || '--'}</td>
+      </tr>` : `
+      <tr>
+        <td>${r.workOrder || '--'}</td><td>${r.partNo || '--'}</td><td>${r.sn || '--'}</td>
+        <td>${r.repairer || '--'}</td><td>${r.errorDesc || '--'}</td><td>${r.reason || '--'}</td>
+        <td>${r.respDept || '--'}</td><td>${r.location || '--'}</td>
+        <td>${r.rawInputDate || '--'}</td><td>${r.rawOutputDate || '--'}</td>
+        <td class="${isDoneRepairRow(r) ? 'status-done' : isWipRepairRow(r) ? 'status-wip' : ''}">${r.status || '--'}</td>
+      </tr>`).join('');
+      }
+      document.getElementById('detail-overlay').classList.add('active');
+    }
+
+    /* ── 修复率未达标预警播报 ── */
+    function updateAlertTicker() {
+      const el = document.getElementById('alert-ticker-inner');
+      if (!el) return;
+
+      const today = getLatestRepairDate() || fmtDate(new Date());
+      const monthPrefix = today.slice(0, 7);
+      const items = [];
+
+      const cfg = [
+        { dept: 'sys', label: '系统厂', dayRL: 60, monRL: 70 },
+        { dept: 'smt', label: 'SMT产线', dayRL: 90, monRL: 98 },
+        { dept: 'elec', label: '电子厂', dayRL: 80, monRL: 90 },
+      ];
+
+      cfg.forEach(c => {
+        const rows = allRows.filter(r => r._dept === c.dept);
+        const dayIn = rows.filter(r => r.rawInputDate === today).length;
+        const dayOut = rows.filter(r => r.rawInputDate === today && isDoneRepairRow(r)).length;
+        const monIn = rows.filter(r => (r.rawInputDate || '').startsWith(monthPrefix)).length;
+        const monOut = rows.filter(r => (r.rawInputDate || '').startsWith(monthPrefix) && isDoneRepairRow(r)).length;
+        const dayRate = dayIn > 0 ? Math.round(dayOut / dayIn * 100) : null;
+        const monRate = monIn > 0 ? Math.round(monOut / monIn * 100) : null;
+        const wip = c.dept === 'sys'
+          ? rows.filter(r => isWipRepairRow(r) || isOtherRepairRow(r)).length
+          : rows.filter(r => isWipRepairRow(r)).length;
+
+        if (dayRate !== null && dayRate < c.dayRL) {
+          const cls = dayRate < c.dayRL * 0.85 ? 'bad' : 'warn';
+          items.push({ text: `🔴 ${c.label} 今日修复率 ${dayRate}% 未达标(红线${c.dayRL}%) | 进:${dayIn} 出:${dayOut}`, cls });
+        } else if (dayRate !== null) {
+          items.push({ text: `✅ ${c.label} 今日修复率 ${dayRate}% 达标 | 进:${dayIn} 出:${dayOut}`, cls: 'ok' });
+        }
+        if (monRate !== null && monRate < c.monRL) {
+          const cls = monRate < c.monRL * 0.9 ? 'bad' : 'warn';
+          items.push({ text: `⚠ ${c.label} 本月修复率 ${monRate}% 未达标(红线${c.monRL}%) | 进:${monIn} 出:${monOut}`, cls });
+        }
+        if (wip > 0) {
+          items.push({ text: `🔧 ${c.label} 当前WIP待修 ${wip} 台`, cls: wip > 50 ? 'warn' : '' });
+        }
+      });
+
+      if (!items.length) {
+        items.push({ text: '✅ 所有部门修复率均达标，运营状态良好', cls: 'ok' });
+      }
+
+      // 双倍内容让滚动无缝衔接
+      const html = [...items, ...items].map(i =>
+        `<span class="alert-ticker-item ${i.cls || ''}">${i.text}</span>`).join('');
+      el.innerHTML = html;
+
+      // 动态调整动画时长（内容越多滚越慢）
+      const duration = Math.max(20, items.length * 6);
+      el.style.animationDuration = duration + 's';
+    }
+
+    /* ── KPI / CHARTS ── */
+    const REPAIR_DEPT_CHARTS = [
+      { key: 'sys', label: '系统厂', color: '#00f0ff' },
+      { key: 'smt', label: 'SMT', color: '#ff2df7' },
+      { key: 'elec', label: '电子厂', color: '#b8ff00' },
+    ];
+    const _repairChartInstances = {};
+
+    function renderKPI() {
+      renderDeptCards();
+    }
+
+    function renderCharts() {
+      renderWipTrend();
+      renderRateRankChart();
+      renderCountRankChart();
+      renderDefectTop5();
+      renderReasonChart();
+    }
+
+    function renderTable() {
+      const overlay = document.getElementById('detail-overlay');
+      if (overlay && overlay.classList.contains('active') && Array.isArray(currentDetailRows)) {
+        const count = document.getElementById('detail-count');
+        if (count) count.textContent = currentDetailRows.length + ' 条记录';
+      }
+    }
+
+    function escRepairChart(v) {
+      return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function disposeRepairChart(targetId) {
+      const el = document.getElementById(targetId);
+      if (!el || !window.echarts) return;
+      const old = echarts.getInstanceByDom ? echarts.getInstanceByDom(el) : _repairChartInstances[targetId];
+      if (old && typeof old.dispose === 'function') old.dispose();
+      delete _repairChartInstances[targetId];
+    }
+
+    function renderRepairBarChart(targetId, rows, options = {}) {
+      const el = document.getElementById(targetId);
+      if (!el) return;
+      const data = (rows || []).filter(r => Number.isFinite(Number(r.value))).slice(0, options.limit || 5);
+      if (!data.length) {
+        disposeRepairChart(targetId);
+        el.innerHTML = '<div class="repair-chart-empty">暂无数据</div>';
+        return;
+      }
+
+      if (window.echarts && typeof echarts.init === 'function') {
+        disposeRepairChart(targetId);
+        el.innerHTML = '';
+        const chart = echarts.init(el);
+        chart.setOption({
+          animation: false,
+          tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+          grid: { left: 58, right: 18, top: 8, bottom: 24 },
+          xAxis: {
+            type: 'value',
+            axisLabel: { color: 'rgba(210,235,255,.55)' },
+            axisLine: { lineStyle: { color: 'rgba(0,240,255,.12)' } },
+            splitLine: { lineStyle: { color: 'rgba(0,240,255,.08)' } },
+          },
+          yAxis: {
+            type: 'category',
+            inverse: true,
+            data: data.map(d => d.label),
+            axisLabel: { color: 'rgba(210,235,255,.78)' },
+            axisLine: { lineStyle: { color: 'rgba(0,240,255,.12)' } },
+          },
+          series: [{
+            type: 'bar',
+            barWidth: 9,
+            data: data.map(d => d.value),
+            itemStyle: { color: options.color || '#00f0ff' },
+          }],
+        });
+        _repairChartInstances[targetId] = chart;
+        setTimeout(() => chart.resize(), 0);
+        return;
+      }
+
+      const max = Math.max(...data.map(d => Math.abs(Number(d.value) || 0)), 1);
+      el.innerHTML = data.map(d => {
+        const value = Number(d.value) || 0;
+        const width = Math.max(2, Math.abs(value) / max * 100).toFixed(1);
+        const text = options.format ? options.format(value, d) : value;
+        return `<div class="repair-bar-row">
+          <div title="${escRepairChart(d.label)}">${escRepairChart(d.label)}</div>
+          <div class="repair-bar-track"><div class="repair-bar-fill" style="width:${width}%;background:${options.color || 'linear-gradient(90deg,var(--c),var(--m))'}"></div></div>
+          <div>${escRepairChart(text)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function topRepairCounts(rows, getter, limit = 5) {
+      const map = new Map();
+      rows.forEach(r => {
+        const key = String(getter(r) || '').trim();
+        if (!key || key === '--' || key === '-') return;
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+      return [...map.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([label, value]) => ({ label, value }));
+    }
+
+    function renderRateRankChart() {
+      const rows = getRowsForCurrentScope();
+      const data = REPAIR_DEPT_CHARTS.map(cfg => {
+        const deptRows = rows.filter(r => r._dept === cfg.key);
+        const done = deptRows.filter(isDoneRepairRow).length;
+        const total = deptRows.length;
+        return {
+          label: cfg.label,
+          value: total ? Math.round(done / total * 100) : 0,
+          done,
+          total,
+        };
+      }).sort((a, b) => b.value - a.value);
+      renderRepairBarChart('chart-rate-rank', data, {
+        color: '#00f0ff',
+        format: (v, d) => `${v}%`,
+      });
+    }
+
+    function renderCountRankChart() {
+      const rows = getRowsForCurrentScope();
+      const data = REPAIR_DEPT_CHARTS.map(cfg => {
+        const deptRows = rows.filter(r => r._dept === cfg.key);
+        const done = deptRows.filter(isDoneRepairRow).length;
+        return {
+          label: cfg.label,
+          value: deptRows.length,
+          done,
+        };
+      }).sort((a, b) => b.value - a.value);
+      renderRepairBarChart('chart-count-rank', data, {
+        color: '#ff2df7',
+        format: (v, d) => `${d.done}/${v}`,
+      });
+    }
+
+    function renderDefectTop5() {
+      renderRepairBarChart(
+        'chart-defect-top5',
+        topRepairCounts(getRowsForCurrentScope(), r => r.errorDesc, 5),
+        { color: '#b8ff00' }
+      );
+    }
+
+    function renderReasonChart() {
+      renderRepairBarChart(
+        'chart-reason',
+        topRepairCounts(getRowsForCurrentScope(), r => r.reason, 5),
+        { color: '#ffaa00' }
+      );
+    }
+
+    function flipNumber(el, value) {
+      if (el) el.textContent = value;
+    }
+
+    function getDept(row) {
+      return row && row._dept;
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      const el = document.getElementById('tab-' + tab);
+      if (el) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+      }
+      updateReportTabLabel();
+      renderAll();
+    }
+    function updateReportTabLabel() {
+      const base = getLatestRepairDate() || fmtDate(new Date());
+      const labels = {
+        daily: '今日 ' + base,
+        weekly: '近7天截至 ' + base,
+        monthly: '本月 ' + base.slice(0, 7),
+        yearly: '本年 ' + base.slice(0, 4),
+      };
+      const uiLabels = { daily: '日报', weekly: '周报', monthly: '月报', yearly: '年报' };
+      const tabInfo = document.getElementById('tab-info');
+      const tabLabel = document.getElementById('report-tab-label');
+      if (tabInfo) tabInfo.textContent = labels[currentTab] || '';
+      if (tabLabel) tabLabel.textContent = uiLabels[currentTab] || '';
+    }
+
+    /* ── WIP趋势图：周/月切换，三部门分色，每日累计，流光光标 ── */
+    let _wipAnimFrame = null;
+    let _flowT = 0;
+    let _wipMode = 'week'; // 'week' | 'month'
+
+    function toggleWipMode() {
+      _wipMode = _wipMode === 'week' ? 'month' : 'week';
+      const btn = document.getElementById('btn-wip-toggle');
+      if (btn) btn.textContent = _wipMode === 'week' ? '📅 按月' : '📆 按周';
+      // 更新标题
+      const title = document.getElementById('wip-title');
+      if (title) title.textContent = _wipMode === 'week' ? 'WIP 待修趋势 · 近7天' : 'WIP 待修趋势 · 按月';
+      renderWipTrend();
+    }
+
+    function renderWipTrend() {
+      const canvas = document.getElementById('chart-wip-trend');
+      if (!canvas) return;
+      if (_wipAnimFrame) { cancelAnimationFrame(_wipAnimFrame); _wipAnimFrame = null; }
+
+      const ctx = canvas.getContext('2d');
+      function resize() {
+        canvas.width = canvas.offsetWidth || 900;
+        canvas.height = canvas.offsetHeight || 260;
+      }
+      resize();
+
+      const deptCfg = [
+        { key: 'sys', label: '系统厂', color: '#00f0ff' },
+        { key: 'smt', label: 'SMT', color: '#ff2df7' },
+        { key: 'elec', label: '电子厂', color: '#b8ff00' },
+      ];
+
+      // 收集所有日期
+      const allDates = [...new Set(
+        allRows.flatMap(r => [r.rawInputDate, r.rawOutputDate]).filter(Boolean)
+      )].sort();
+
+      if (!allDates.length) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(0,200,255,0.3)';
+        ctx.font = '13px "Share Tech Mono",monospace';
+        ctx.fillText('导入数据后显示WIP趋势', 30, canvas.height / 2);
+        return;
+      }
+
+      // 构建X轴标签序列
+      let xLabels = [];
+      if (_wipMode === 'week') {
+        // 近7天（以数据最新日期为截止）
+        const latest = allDates[allDates.length - 1];
+        const base = parseDate(latest) || new Date();
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i);
+          xLabels.push(fmtDate(d));
+        }
+      } else {
+        // 所有月份
+        xLabels = [...new Set(allDates.map(d => d.slice(0, 7)))].sort();
+      }
+
+      // 计算每个部门在每个时间点的WIP快照
+      // 趋势图：每个点只显示该天/月新增的待修数
+      deptCfg.forEach(d => {
+        const rows = allRows.filter(r => r._dept === d.key);
+        const isW = (r) => d.key === 'sys'
+          ? (isWipRepairRow(r) || isOtherRepairRow(r))
+          : isWipRepairRow(r);
+
+        if (_wipMode === 'week') {
+          // 每天：入库时间=该天 且 状态=待修/其它
+          d.wipData = xLabels.map(day =>
+            rows.filter(r => r.rawInputDate === day && isW(r)).length
+          );
+        } else {
+          // 每月：入库时间在该月 且 状态=待修/其它
+          d.wipData = xLabels.map(mon =>
+            rows.filter(r => (r.rawInputDate || '').startsWith(mon) && isW(r)).length
+          );
+        }
+      });
+
+      const maxWip = Math.max(...deptCfg.flatMap(d => d.wipData), 1);
+      const P = { t: 36, r: 24, b: 44, l: 58 };
+
+      function draw() {
+        resize();
+        const W = canvas.width, H = canvas.height;
+        const gW = W - P.l - P.r, gH = H - P.t - P.b;
+        ctx.clearRect(0, 0, W, H);
+
+        // 网格
+        ctx.strokeStyle = 'rgba(0,240,255,0.06)'; ctx.lineWidth = 0.5; ctx.setLineDash([3, 6]);
+        for (let i = 0; i <= 4; i++) {
+          const y = P.t + gH * (1 - i / 4);
+          ctx.beginPath(); ctx.moveTo(P.l, y); ctx.lineTo(P.l + gW, y); ctx.stroke();
+          ctx.fillStyle = 'rgba(0,240,255,0.35)';
+          ctx.font = '11px "Share Tech Mono",monospace'; ctx.textAlign = 'right';
+          ctx.fillText(Math.round(maxWip * i / 4), P.l - 6, y + 4);
+        }
+        ctx.setLineDash([]);
+
+        // X轴标签
+        ctx.fillStyle = 'rgba(0,240,255,0.35)';
+        ctx.font = '11px "Share Tech Mono",monospace'; ctx.textAlign = 'center';
+        xLabels.forEach((lbl, i) => {
+          const x = P.l + i / Math.max(xLabels.length - 1, 1) * gW;
+          ctx.fillText(_wipMode === 'week' ? lbl.slice(5) : lbl, x, H - 10);
+        });
+
+        // 图例
+        deptCfg.forEach((d, i) => {
+          const lx = P.l + 10 + i * 105, ly = 16;
+          ctx.save(); ctx.shadowColor = d.color; ctx.shadowBlur = 8;
+          ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 20, ly);
+          ctx.strokeStyle = d.color; ctx.lineWidth = 2.5; ctx.stroke(); ctx.restore();
+          ctx.fillStyle = d.color;
+          ctx.font = '11px "Share Tech Mono",monospace'; ctx.textAlign = 'left';
+          ctx.fillText(d.label, lx + 24, ly + 4);
+        });
+
+        const t = Date.now() / 1000;
+
+        // 每部门画线
+        deptCfg.forEach((dept, di) => {
+          if (!dept.wipData || dept.wipData.length < 1) return;
+          const pts = dept.wipData.map((v, i) => ({
+            x: P.l + i / Math.max(xLabels.length - 1, 1) * gW,
+            y: P.t + gH * (1 - v / maxWip)
+          }));
+          const c = dept.color;
+          const r16 = parseInt(c.slice(1, 3), 16), g16 = parseInt(c.slice(3, 5), 16), b16 = parseInt(c.slice(5, 7), 16);
+
+          // 面积
+          const grad = ctx.createLinearGradient(0, P.t, 0, P.t + gH);
+          grad.addColorStop(0, `rgba(${r16},${g16},${b16},0.18)`);
+          grad.addColorStop(1, `rgba(${r16},${g16},${b16},0)`);
+          ctx.beginPath();
+          pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+          ctx.lineTo(pts[pts.length - 1].x, P.t + gH); ctx.lineTo(pts[0].x, P.t + gH);
+          ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+          // 主线辉光
+          ctx.save(); ctx.shadowColor = c; ctx.shadowBlur = 16;
+          ctx.beginPath(); pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+          ctx.strokeStyle = c; ctx.lineWidth = 2.5; ctx.stroke();
+          ctx.shadowBlur = 4; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.stroke();
+          ctx.restore();
+
+          // 数据点脉冲 + 数值标签
+          pts.forEach((p, pi) => {
+            const pulse = (Math.sin(t * 1.5 + pi * 0.5) + 1) / 2;
+            ctx.save();
+            ctx.strokeStyle = `rgba(${r16},${g16},${b16},${0.6 * pulse})`;
+            ctx.lineWidth = 1; ctx.shadowColor = c; ctx.shadowBlur = 10 * pulse;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 4 + 5 * pulse, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = c; ctx.shadowBlur = 8; ctx.fill();
+            ctx.restore();
+            // 数值标签
+            const val = dept.wipData[pi];
+            if (val > 0) {
+              ctx.save();
+              ctx.font = 'bold 10px "Share Tech Mono",monospace';
+              ctx.fillStyle = c;
+              ctx.shadowColor = c; ctx.shadowBlur = 6;
+              ctx.textAlign = 'center';
+              ctx.fillText(val, p.x, p.y - 10);
+              ctx.restore();
+            }
+          });
+
+          // 流光光标
+          if (pts.length < 2) return;
+          const ft = ((_flowT + di * 0.33) % 1);
+          let segs = [], total = 0;
+          for (let i = 1; i < pts.length; i++) {
+            const dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y, len = Math.hypot(dx, dy);
+            segs.push({ i, len, dx, dy }); total += len;
+          }
+          let acc = 0, fp = null;
+          for (const s of segs) {
+            const s0 = acc / total, s1 = (acc + s.len) / total;
+            if (ft >= s0 && ft <= s1) { const lt = (ft - s0) / (s1 - s0); fp = { x: pts[s.i - 1].x + s.dx * lt, y: pts[s.i - 1].y + s.dy * lt }; break; }
+            acc += s.len;
+          }
+          if (fp) {
+            ctx.save();
+            const rg = ctx.createRadialGradient(fp.x, fp.y, 0, fp.x, fp.y, 16);
+            rg.addColorStop(0, 'rgba(255,255,255,1)');
+            rg.addColorStop(0.25, `rgba(${r16},${g16},${b16},0.9)`);
+            rg.addColorStop(0.7, `rgba(${r16},${g16},${b16},0.3)`);
+            rg.addColorStop(1, `rgba(${r16},${g16},${b16},0)`);
+            ctx.shadowColor = c; ctx.shadowBlur = 28;
+            ctx.beginPath(); ctx.arc(fp.x, fp.y, 16, 0, Math.PI * 2);
+            ctx.fillStyle = rg; ctx.fill(); ctx.restore();
+          }
+        });
+
+        _flowT = (_flowT + 0.003) % 1;
+        if (!window.RDC_DISABLE_EFFECTS) _wipAnimFrame = requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    /* ══════════════════════════════════════════════════
+       DETAIL MODAL & EXPORT
+    ══════════════════════════════════════════════════ */
+    window.openDetailModal = function (title, filterFn) {
+      const rows = getFilteredRows();
+      currentDetailRows = rows.filter(filterFn);
+
+      document.getElementById('detail-title').textContent = title;
+      document.getElementById('detail-count').textContent = currentDetailRows.length + ' 条记录';
+
+      const tbody = document.getElementById('detail-tbody');
+      if (currentDetailRows.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="7">暂无匹配数据</td></tr>';
+      } else {
+        tbody.innerHTML = currentDetailRows.map(r => `
+      <tr>
+        <td>${r.sn || r.workOrder || '--'}</td>
+        <td>${r.rawInputDate || '--'}</td>
+        <td>${r.repairer || '--'}</td>
+        <td>${r.errorDesc || '--'}</td>
+        <td>${r.reason || '--'}</td>
+        <td class="${isDoneRepairRow(r) ? 'status-done' : 'status-wip'}">${r.status || '--'}</td>
+        <td>${r.rawOutputDate || '--'}</td>
+      </tr>`).join('');
+      }
+      document.getElementById('detail-overlay').classList.add('active');
+    }
+
+    function closeDetailOverlay(e) {
+      if (e.target.id === 'detail-overlay') document.getElementById('detail-overlay').classList.remove('active');
+    }
+
+    async function exportDetailExcel() {
+      if (!currentDetailRows || !currentDetailRows.length) return showToast('没有可导出的数据');
+      const isSys = currentDetailRows[0]?._source === 'sys';
+      const data = currentDetailRows.map(r => isSys ? ({
+        '工单': r.workOrder, '机器料号': r.partNo, '序号': r.sn,
+        '维修员': r.repairer, '不良描述': r.errorDesc, '不良原因': r.reason,
+        '维修位置': r.location, '不良时间': r.rawInputDate, '维修时间': r.rawOutputDate, '状态': r.status,
+      }) : ({
+        '工单': r.workOrder, '板卡料号': r.partNo, '序号': r.sn,
+        '维修员': r.repairer, '错误描述': r.errorDesc, '原因': r.reason,
+        '责任别': r.respDept, '维修位置': r.location,
+        '进板时间': r.rawInputDate, '出板时间': r.rawOutputDate, '状态': r.status,
+      }));
+      try {
+        const XLSXLib = await ensureXlsxReady();
+        const ws = XLSXLib.utils.json_to_sheet(data);
+        const wb = XLSXLib.utils.book_new();
+        XLSXLib.utils.book_append_sheet(wb, ws, '数据明细');
+        XLSXLib.writeFile(wb, `维修明细_${Date.now()}.xlsx`);
+        showToast('导出成功');
+      } catch (e) { showToast('导出失败: ' + e.message); }
+    }
+
+    /* ══════════════════════════════════════════════════
+       AI REPORT
+    ══════════════════════════════════════════════════ */
+    function saveAiConfig() {
+      localStorage.setItem('ash_ai_ep', document.getElementById('ai-endpoint').value);
+      localStorage.setItem('ash_ai_model', document.getElementById('ai-model-input').value);
+      localStorage.setItem('ash_ai_key', document.getElementById('ai-key').value);
+      showToast('AI 配置已保存');
+    }
+
+    async function generateAiReport() {
+      const key = document.getElementById('ai-key').value;
+      if (!key) return showToast('请先输入你的 API Key');
+      let endpoint = document.getElementById('ai-endpoint').value.trim();
+      if (!endpoint.startsWith('http')) return showToast('请先在设置中填入兼容 OpenAI Chat 格式的 AI 接口地址');
+      const model = document.getElementById('ai-model-input').value || 'gemma-4-31b-it';
+
+      const outBox = document.getElementById('ai-report-out');
+      if (outBox) outBox.innerHTML = '<div class="ai-thinking">AI 分析中，正在调用大模型...</div>';
+
+      const rows = allRows;
+      if (!rows.length) { showToast('暂无数据，请先导入文件'); return; }
+
+      const inputCount = rows.filter(r => isDoneRepairRow(r) || isWipRepairRow(r)).length;
+      const outputCount = rows.filter(r => isDoneRepairRow(r)).length;
+      const rate = inputCount > 0 ? Math.round(outputCount / inputCount * 100) : 0;
+      const wip = Math.max(0, inputCount - outputCount);
+
+      const prompt = `你是制造中心维修数据分析专家。请基于以下看板数据为管理者写一份维修质量总结报告，不可捏造数据。
+【数据摘要】总进板：${inputCount}台 | 完成出板：${outputCount}台 | 整体修复率：${rate}% | WIP待修：${wip}台
+要求：专业干练，总结风险，使用纯HTML片段（h3/p/ul/strong），不输出markdown。`;
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+          body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
+        });
+        if (!res.ok) throw new Error('API状态错误: ' + res.status);
+        const data = await res.json();
+        let content = data.choices[0].message.content.replace(/^```html/i, '').replace(/^```/i, '').replace(/```$/i, '');
+        if (outBox) outBox.innerHTML = content;
+        showToast('✅ 报告生成完毕');
+      } catch (e) {
+        if (outBox) outBox.innerHTML = `<div class="ai-placeholder" style="color:#ff4500">生成失败: ${e.message}</div>`;
+      }
+    }
+
+
+    /* ══════════════════════════════════════════════════
+       TEAMS PUSH (WEBHOOK)
+    ══════════════════════════════════════════════════ */
+    function loadTeamsConfig() {
+      const valMins = localStorage.getItem('ash_refresh_mins');
+      if (valMins) {
+        document.getElementById('refresh-mins').value = valMins;
+        currentRefreshMins = parseInt(valMins);
+      }
+      if (localStorage.getItem('ash_teams_hook')) document.getElementById('teams-webhook').value = localStorage.getItem('ash_teams_hook');
+      if (localStorage.getItem('ash_teams_time')) document.getElementById('teams-time').value = localStorage.getItem('ash_teams_time');
+      if (localStorage.getItem('ash_push_yest') !== null) document.getElementById('push-yesterday').checked = localStorage.getItem('ash_push_yest') === 'true';
+      if (localStorage.getItem('ash_push_lw') !== null) document.getElementById('push-lastweek').checked = localStorage.getItem('ash_push_lw') === 'true';
+      if (localStorage.getItem('ash_push_lm') !== null) document.getElementById('push-lastmonth').checked = localStorage.getItem('ash_push_lm') === 'true';
+      if (localStorage.getItem('ash_push_yr') !== null) document.getElementById('push-year').checked = localStorage.getItem('ash_push_yr') === 'true';
+      const wxHook = localStorage.getItem('ash_wxwork_hook');
+      if (wxHook) { const el = document.getElementById('wxwork-webhook'); if (el) el.value = wxHook; }
+
+      setInterval(() => {
+        const targetTime = document.getElementById('teams-time').value;
+        if (!targetTime) return;
+        const now = new Date();
+        const curHM = now.toTimeString().slice(0, 5);
+        const todayStr = fmtDate(now);
+        if (curHM === targetTime && lastPushDate !== todayStr) {
+          sendTeamsWebhook();
+          sendWxworkWebhook();
+          lastPushDate = todayStr;
+        }
+        // 每次定时循环都检测重复不良（数据有变化时会自动推送）
+        checkAndPushRepeatDefects();
+      }, 40000);
+    }
+
+    function saveTeamsConfig() {
+      localStorage.setItem('ash_teams_hook', document.getElementById('teams-webhook').value);
+      localStorage.setItem('ash_teams_time', document.getElementById('teams-time').value);
+      localStorage.setItem('ash_push_yest', document.getElementById('push-yesterday').checked);
+      localStorage.setItem('ash_push_lw', document.getElementById('push-lastweek').checked);
+      localStorage.setItem('ash_push_lm', document.getElementById('push-lastmonth').checked);
+      localStorage.setItem('ash_push_yr', document.getElementById('push-year').checked);
+      const wxVal = document.getElementById('wxwork-webhook').value;
+      if (wxVal) localStorage.setItem('ash_wxwork_hook', wxVal);
+      showToast("推送配置已保存");
+    }
+
+    function testTeamsPush() { sendTeamsWebhook(true); }
+    function testWxworkPush() { sendWxworkWebhook(true); }
+
+    /* ── 重复不良检测：同工单+同不良描述 ≥ 3 片，每个组合只推一次 ── */
+    const REPEAT_ALERT_KEY = 'ash_repeat_alerted';
+
+    function getAlertedSet() {
+      try { return new Set(JSON.parse(localStorage.getItem(REPEAT_ALERT_KEY) || '[]')); }
+      catch (e) { return new Set(); }
+    }
+    function saveAlertedSet(s) {
+      try { localStorage.setItem(REPEAT_ALERT_KEY, JSON.stringify([...s])); } catch (e) { }
+    }
+
+    function detectRepeatDefects() {
+      const results = [];
+      ['sys', 'smt', 'elec'].forEach(dept => {
+        const rows = allRows.filter(r => r._dept === dept);
+        const map = {};
+        rows.forEach(r => {
+          const key = (r.workOrder || '').trim() + '|||' + (r.errorDesc || '').trim();
+          if (!r.workOrder && !r.errorDesc) return;
+          if (!map[key]) map[key] = { workOrder: r.workOrder, desc: r.errorDesc, dept, count: 0 };
+          map[key].count++;
+        });
+        Object.values(map).forEach(v => {
+          if (v.count >= 3) results.push(v);
+        });
+      });
+      return results;
+    }
+
+    async function checkAndPushRepeatDefects() {
+      const alerts = detectRepeatDefects();
+      if (!alerts.length) return;
+
+      const alerted = getAlertedSet();
+      const newAlerts = alerts.filter(a => {
+        const k = a.workOrder + '|||' + a.desc;
+        return !alerted.has(k);
+      });
+      if (!newAlerts.length) return;
+
+      // 标记为已推送（持久化）
+      newAlerts.forEach(a => alerted.add(a.workOrder + '|||' + a.desc));
+      saveAlertedSet(alerted);
+
+      const deptLabel = { sys: '系统厂', smt: 'SMT产线', elec: '电子厂' };
+      const lines = newAlerts.map(a =>
+        `- 【${deptLabel[a.dept]}】工单：**${a.workOrder}** | 不良描述：**${a.desc}** | 数量：**${a.count} 片**`
+      ).join('\n');
+
+      const msg = `🚨 **重复不良预警 · ASH 维修中心**\n检测到以下工单同一不良描述 ≥ 3 片：\n\n${lines}\n\n📊 [点击打开 ASH 维修看板](${window.location.href})`;
+
+      const teamsUrl = document.getElementById('teams-webhook').value;
+      const wxworkUrl = document.getElementById('wxwork-webhook').value;
+
+      if (teamsUrl) {
+        const payload = {
+          "@type": "MessageCard", "@context": "http://schema.org/extensions",
+          "themeColor": "ff4500", "summary": "重复不良预警",
+          "sections": [{ "activityTitle": "🚨 重复不良预警", "text": msg, "markdown": true }]
+        };
+        try { await fetch(teamsUrl, { method: 'POST', body: JSON.stringify(payload) }); } catch (e) { }
+      }
+      if (wxworkUrl) {
+        try {
+          await fetch(wxworkUrl, {
+            method: 'POST', mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ msgtype: 'markdown', markdown: { content: msg } })
+          });
+        } catch (e) { }
+      }
+      showToast('🚨 已推送重复不良预警');
+    }
+
+    /* ── 构建详细推送内容（共用）── */
+    function buildDetailedPushContent(isTest) {
+      const dashboardUrl = window.location.href;
+      const now = new Date();
+      const nowStr = now.toLocaleString('zh-CN');
+      const todayStr = fmtDate(now);
+      const monthPrefix = todayStr.slice(0, 7);
+
+      // 按 _dept 统计（与卡片同口径：进出都以 rawInputDate 为准）
+      const deptCfg = [
+        { key: 'sys', label: '🖥️ 系统厂' },
+        { key: 'smt', label: '🔬 SMT' },
+        { key: 'elec', label: '⚙️ 电子厂' },
+      ];
+      const deptRows = deptCfg.map(d => {
+        const rows = allRows.filter(r => r._dept === d.key);
+        const dayIn = rows.filter(r => r.rawInputDate === todayStr).length;
+        const dayOut = rows.filter(r => r.rawInputDate === todayStr && isDoneRepairRow(r)).length;
+        const monIn = rows.filter(r => (r.rawInputDate || '').startsWith(monthPrefix)).length;
+        const monOut = rows.filter(r => (r.rawInputDate || '').startsWith(monthPrefix) && isDoneRepairRow(r)).length;
+        const rate = (i, o) => i > 0 ? Math.round(o / i * 100) + '%' : 'N/A';
+        return { ...d, dayIn, dayOut, dayRate: rate(dayIn, dayOut), monIn, monOut, monRate: rate(monIn, monOut) };
+      });
+
+      const wipTotal = allRows.filter(r => isWipRepairRow(r) || isOtherRepairRow(r)).length;
+
+      const deptTable = `| 部门 | 今日进板 | 今日出板 | 今日修复率 | 本月进板 | 本月出板 | 本月修复率 |
+|------|---------|---------|-----------|---------|---------|-----------|
+${deptRows.map(d => `| ${d.label} | ${d.dayIn} | ${d.dayOut} | ${d.dayRate} | ${d.monIn} | ${d.monOut} | ${d.monRate} |`).join('\n')}`;
+
+      const detailMd = calculateTeamsFacts() || '';
+
+      const markdownBody = `${isTest ? '【推送测试】' : ''}**ASH 维修中心 · 数字孪生看板自动播报**
+**推送时间：** ${nowStr}　　**待修WIP：** ${wipTotal} 台
+
+---
+${deptTable}
+${detailMd ? '---\n' + detailMd : ''}---
+📊 **看板链接：** [点击打开 ASH 维修看板](${dashboardUrl})`;
+
+      return markdownBody;
+    }
+
+    async function sendTeamsWebhook(isTest = false) {
+      const webhookURL = document.getElementById('teams-webhook').value;
+      if (!webhookURL) { if (isTest) showToast('请先输入 Teams Webhook URL'); return; }
+
+      const markdownBody = buildDetailedPushContent(isTest);
+      const payload = {
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "themeColor": "5c5fc8",
+        "summary": "ASH 维修中心定时报告",
+        "sections": [{
+          "activityTitle": "⚙️ ASH 维修中心自动数据播报",
+          "activitySubtitle": isTest ? "【自动推送测试】" + new Date().toLocaleString('zh-CN') : "【定时推送】" + new Date().toLocaleString('zh-CN'),
+          "text": markdownBody,
+          "markdown": true
+        }]
+      };
+
+      try {
+        await fetch(webhookURL, { method: 'POST', body: JSON.stringify(payload) });
+        if (isTest) showToast('✅ 成功推送到 Teams');
+      } catch (e) {
+        console.error(e);
+        if (isTest) showToast('❌ Teams 推送失败: ' + e.message);
+      }
+    }
+
+    /* ── 企业微信机器人推送 ── */
+    async function sendWxworkWebhook(isTest = false) {
+      const wxUrl = document.getElementById('wxwork-webhook').value.trim();
+      if (!wxUrl) { if (isTest) showToast('请先输入企业微信 Webhook URL'); return; }
+
+      const dashboardUrl = window.location.href;
+      const markdownBody = buildDetailedPushContent(isTest);
+
+      // 企业微信 Markdown 消息格式
+      const payload = {
+        msgtype: 'markdown',
+        markdown: {
+          content: markdownBody + `\n\n> 看板链接：${dashboardUrl}`
+        }
+      };
+
+      try {
+        // 企微webhook同域可直接fetch；跨域需走代理或no-cors
+        const res = await fetch(wxUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          mode: 'no-cors'
+        });
+        if (isTest) showToast('✅ 企业微信推送已发送（no-cors）');
+      } catch (e) {
+        console.error(e);
+        if (isTest) showToast('❌ 企业微信推送失败: ' + e.message);
+      }
+    }
+
+    function calculateTeamsFacts() {
+      const today = new Date();
+      const todayStr = fmtDate(today);
+
+      const yest = new Date(today); yest.setDate(yest.getDate() - 1);
+      const yestStr = fmtDate(yest);
+
+      const lwEnd = new Date(today); lwEnd.setDate(today.getDate() - today.getDay());
+      const lwStart = new Date(lwEnd); lwStart.setDate(lwEnd.getDate() - 6);
+
+      const lmStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lmEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+
+      let md = "";
+      if (document.getElementById('push-yesterday').checked)
+        md += getStatsForDateRange(yestStr, yestStr, `昨日 (${yestStr})`) + "  \n\n";
+      if (document.getElementById('push-lastweek').checked)
+        md += getStatsForDateRange(fmtDate(lwStart), fmtDate(lwEnd), `上周`) + "  \n\n";
+      if (document.getElementById('push-lastmonth').checked)
+        md += getStatsForDateRange(fmtDate(lmStart), fmtDate(lmEnd), `上月`) + "  \n\n";
+      if (document.getElementById('push-year').checked)
+        md += getTodayRateAlert(todayStr);
+      return md;
+    }
+
+    // 今日修复率是否未达标播报
+    function getTodayRateAlert(todayStr) {
+      const cfg = [
+        { dept: 'sys', label: '系统厂', dayRL: 60 },
+        { dept: 'smt', label: 'SMT产线', dayRL: 90 },
+        { dept: 'elec', label: '电子厂', dayRL: 80 },
+      ];
+      let md = '';
+      cfg.forEach(c => {
+        const rows = allRows.filter(r => r._dept === c.dept);
+        const dayIn = rows.filter(r => r.rawInputDate === todayStr).length;
+        const dayOut = rows.filter(r => r.rawInputDate === todayStr && isDoneRepairRow(r)).length;
+        if (dayIn === 0) return;
+        const rate = Math.round(dayOut / dayIn * 100);
+        if (rate < c.dayRL) {
+          md += `**⚠ ${c.label} 今日修复率未达标** ${rate}% (红线${c.dayRL}%) | 进:${dayIn} 出:${dayOut}  \n\n`;
+        } else {
+          md += `**✅ ${c.label} 今日修复率达标** ${rate}% | 进:${dayIn} 出:${dayOut}  \n\n`;
+        }
+      });
+      return md;
+    }
+
+    function getStatsForDateRange(startDateStr, endDateStr, title) {
+      const inCount = allRows.filter(r => r.rawInputDate >= startDateStr && r.rawInputDate <= endDateStr).length;
+      const outCount = allRows.filter(r => r.rawInputDate >= startDateStr && r.rawInputDate <= endDateStr && isDoneRepairRow(r)).length;
+      const rate = inCount > 0 ? Math.round(outCount / inCount * 100) : 0;
+      return `**${title}**: 入库 **${inCount}** | 完成修复 **${outCount}** | 修复率 **${rate}%**`;
+    }
+
+    /* ── 立即刷新（手动触发重读所有绑定文件）── */
+    async function manualRefresh() {
+      if (!fileHandleSys && !fileHandleAsh) {
+        await _mergeAndRender();
+        showToast(allRows.length ? '⚠ 当前无可用文件句柄，已尝试本机绑定路径并保留历史数据' : '⚠ 请先绑定文件');
+        return;
+      }
+      showToast('🔄 正在刷新数据...');
+      await _mergeAndRender();
+      showToast('✅ 刷新完成，无法访问的共享路径已保留历史数据');
+    }
+
+    /* ══════════════════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════════════════ */
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 3500);
+    }
+
+    /* ── _pickFileInput：通用 input[type=file] 选文件（兼容 blob iframe）──
+       source: 'sys' | 'elec'，cb(file) 选中后回调                        */
+    function _pickFileInput(source, cb) {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = '.xlsx,.xls,.csv';
+      inp.style.display = 'none';
+      inp.onchange = () => {
+        const file = inp.files && inp.files[0];
+        document.body.removeChild(inp);
+        if (!file) return;
+        cb(file);
+      };
+      document.body.appendChild(inp);
+      inp.click();
+    }
+
+  </script>
+
+  <script>
+    /* ── 背景 Canvas：深空粒子 + 极光脉冲 ── */
+    (function () {
+      if (window.RDC_DISABLE_EFFECTS) return;
+      const cv = document.getElementById('bgCanvas');
+      if (!cv || !cv.getContext) return; // 背景画布缺失时跳过特效，不阻断脚本执行
+      const ctx = cv.getContext('2d');
+      let W, H, pts = [];
+      function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
+      resize(); addEventListener('resize', resize);
+      function mk() {
+        return {
+          x: Math.random() * W, y: Math.random() * H,
+          r: Math.random() * 1.2 + 0.2,
+          vx: (Math.random() - .5) * .18, vy: (Math.random() - .5) * .18,
+          a: Math.random() * .3 + .04,
+          hue: Math.random() > 0.6 ? 300 : 185
+        };
+      }
+      pts = Array.from({ length: 70 }, mk);
+      function frame() {
+        ctx.clearRect(0, 0, W, H);
+        for (const p of pts) {
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue},100%,70%,${p.a})`; ctx.fill();
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) Object.assign(p, mk());
+        }
+        for (let i = 0; i < pts.length; i++) {
+          for (let j = i + 1; j < pts.length; j++) {
+            const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y, d = Math.hypot(dx, dy);
+            if (d < 110) {
+              ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
+              ctx.strokeStyle = `rgba(0,240,255,${.06 * (1 - d / 110)})`; ctx.lineWidth = .4; ctx.stroke();
+            }
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+      frame();
+    })();
+
+    /* ── HEX 数据流 ── */
+    (function () {
+      if (window.RDC_DISABLE_EFFECTS) return;
+      const L = document.getElementById('hex-l'), R = document.getElementById('hex-r');
+      const r16 = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(' ');
+      const ROWS = 55;
+      let lLines = Array.from({ length: ROWS }, r16);
+      let rLines = Array.from({ length: ROWS }, r16);
+      function upd() {
+        lLines.shift(); lLines.push(r16());
+        rLines.shift(); rLines.push(r16());
+        L.textContent = lLines.join('\n');
+        R.textContent = rLines.join('\n');
+      }
+      L.textContent = lLines.join('\n'); R.textContent = rLines.join('\n');
+      setInterval(upd, 200);
+    })();
+
+    /* ── WIP 激光趋势线（覆盖 app.js drawLineChart）── */
+    function drawLineChart(ctx, canvas, labels, data, _) {
+      const W = canvas.offsetWidth || 900, H = canvas.height || 260;
+      canvas.width = W;
+      const P = { t: 26, r: 26, b: 36, l: 55 };
+      const gW = W - P.l - P.r, gH = H - P.t - P.b;
+      const max = Math.max(...data, 1);
+
+      // 计算坐标
+      const pts = data.map((v, i) => ({
+        x: P.l + (i / (labels.length - 1)) * gW,
+        y: P.t + gH - (v / max) * gH
+      }));
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        // 背景微网格
+        ctx.strokeStyle = 'rgba(0,240,255,0.05)'; ctx.lineWidth = 0.5;
+        ctx.setLineDash([3, 6]);
+        for (let i = 0; i <= 4; i++) {
+          const y = P.t + gH - (i / 4) * gH;
+          ctx.beginPath(); ctx.moveTo(P.l, y); ctx.lineTo(P.l + gW, y); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // Y 轴标签
+        ctx.fillStyle = 'rgba(0,240,255,0.35)';
+        ctx.font = '13px "Share Tech Mono",monospace'; ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+          const y = P.t + gH - (i / 4) * gH;
+          ctx.fillText(Math.round(max * i / 4), P.l - 8, y + 4);
+        }
+
+        // 面积填充
+        const aG = ctx.createLinearGradient(0, P.t, 0, P.t + gH);
+        aG.addColorStop(0, 'rgba(0,240,255,0.14)');
+        aG.addColorStop(0.5, 'rgba(107,33,255,0.08)');
+        aG.addColorStop(1, 'rgba(0,240,255,0)');
+        ctx.beginPath();
+        pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+        ctx.lineTo(pts[pts.length - 1].x, P.t + gH); ctx.lineTo(pts[0].x, P.t + gH); ctx.closePath();
+        ctx.fillStyle = aG; ctx.fill();
+
+        // ── 激光主线（多重辉光叠加）──
+        // 外层大辉光
+        ctx.save();
+        ctx.shadowColor = '#00f0ff'; ctx.shadowBlur = 24;
+        ctx.beginPath(); pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+        const lG = ctx.createLinearGradient(P.l, 0, P.l + gW, 0);
+        lG.addColorStop(0, 'rgba(0,240,255,0.3)'); lG.addColorStop(0.4, 'rgba(107,33,255,0.6)'); lG.addColorStop(1, 'rgba(184,255,0,0.5)');
+        ctx.strokeStyle = lG; ctx.lineWidth = 6; ctx.stroke();
+        // 中层亮线
+        ctx.shadowBlur = 14; ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0,240,255,0.7)'; ctx.stroke();
+        // 核心白线
+        ctx.shadowBlur = 4; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(200,255,255,0.9)'; ctx.stroke();
+        ctx.restore();
+
+        // ── 数据点扩散圆环 ──
+        const t = Date.now() / 1000;
+        pts.forEach((p, i) => {
+          const phase = t * 1.5 + i * 0.4;
+          const pulse = (Math.sin(phase) + 1) / 2; // 0~1
+          // 外扩散环
+          ctx.save();
+          ctx.strokeStyle = `rgba(0,240,255,${0.5 * pulse})`;
+          ctx.lineWidth = 1;
+          ctx.shadowColor = '#00f0ff'; ctx.shadowBlur = 10 * pulse;
+          ctx.beginPath(); ctx.arc(p.x, p.y, 6 + 8 * pulse, 0, Math.PI * 2); ctx.stroke();
+          // 内圆
+          ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(200,255,255,0.9)`;
+          ctx.shadowBlur = 12; ctx.fill();
+          ctx.restore();
+        });
+
+        // ── 流光点沿线移动 ──
+        const segs = [];
+        let total = 0;
+        for (let i = 1; i < pts.length; i++) {
+          const dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y, len = Math.hypot(dx, dy);
+          segs.push({ i, len, dx, dy }); total += len;
+        }
+        _flowT = (_flowT + 0.004) % 1;
+        let acc = 0, fp = null;
+        for (const s of segs) {
+          const s0 = acc / total, s1 = (acc + s.len) / total;
+          if (_flowT >= s0 && _flowT <= s1) {
+            const lt = (_flowT - s0) / (s1 - s0);
+            fp = { x: pts[s.i - 1].x + s.dx * lt, y: pts[s.i - 1].y + s.dy * lt }; break;
+          }
+          acc += s.len;
+        }
+        if (fp) {
+          ctx.save();
+          const rg = ctx.createRadialGradient(fp.x, fp.y, 0, fp.x, fp.y, 18);
+          rg.addColorStop(0, 'rgba(255,255,255,1)');
+          rg.addColorStop(0.2, 'rgba(184,255,0,0.9)');
+          rg.addColorStop(0.6, 'rgba(0,240,255,0.4)');
+          rg.addColorStop(1, 'rgba(0,240,255,0)');
+          ctx.shadowColor = '#b8ff00'; ctx.shadowBlur = 30;
+          ctx.beginPath(); ctx.arc(fp.x, fp.y, 18, 0, Math.PI * 2);
+          ctx.fillStyle = rg; ctx.fill();
+          ctx.restore();
+        }
+
+        // X 标签
+        ctx.fillStyle = 'rgba(0,240,255,0.3)';
+        ctx.font = '12px "Share Tech Mono",monospace'; ctx.textAlign = 'center';
+        labels.forEach((lbl, i) => { if (i % 3 === 0) ctx.fillText(lbl, pts[i].x, P.t + gH + 22); });
+
+        if (!window.RDC_DISABLE_EFFECTS) requestAnimationFrame(draw);
+      }
+      if (!_flowRunning) { _flowRunning = true; draw(); }
+    }
+
+    /* ── 恢复已存配置（由 app.js loadTeamsConfig 处理，此处留空）── */
+    document.addEventListener('DOMContentLoaded', () => {
+      const wx = localStorage.getItem('ash_wxwork_hook');
+      if (wx) { const el = document.getElementById('wxwork-webhook'); if (el) el.value = wx; }
+    });
+
+    function closeDetailOverlay(e) {
+      if (e.target === document.getElementById('detail-overlay'))
+        document.getElementById('detail-overlay').classList.remove('active');
+    }
+    async function exportDetailExcel() {
+      const rows = [];
+      document.querySelectorAll('#detail-tbody tr').forEach(tr => {
+        rows.push([...tr.querySelectorAll('td')].map(td => td.textContent));
+      });
+      const XLSXLib = await ensureXlsxReady();
+      const ws = XLSXLib.utils.aoa_to_sheet([['工单', '入库日期', '维修员工', '描述', '原因', '状态', '完成日期'], ...rows]);
+      const wb = XLSXLib.utils.book_new(); XLSXLib.utils.book_append_sheet(wb, ws, 'Detail');
+      XLSXLib.writeFile(wb, `ASH_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }
+
+    /* ── 设置弹窗 ── */
+    function toggleSettings() {
+      const modal = document.getElementById('settings-modal');
+      if (!modal) return;
+      const isOpen = modal.classList.contains('active');
+      if (isOpen) {
+        modal.classList.remove('active');
+        document.getElementById('btn-settings').classList.remove('active');
+      } else {
+        modal.classList.add('active');
+        document.getElementById('btn-settings').classList.add('active');
+      }
+    }
+
+    function closeSettings() {
+      const modal = document.getElementById('settings-modal');
+      if (modal) modal.classList.remove('active');
+      const btn = document.getElementById('btn-settings');
+      if (btn) btn.classList.remove('active');
+    }
+
+    function autoCloseSettings() {
+      setTimeout(closeSettings, 600);
+    }
+
+    async function rdcRefresh(options = {}) {
+      try {
+        await ensureXlsxReady();
+        let reloaded = false;
+        if (fileHandleSys || fileHandleAsh) {
+          await _mergeAndRender();
+          reloaded = true;
+        } else {
+          const before = allRows.length;
+          loadFromStorage();
+          reloaded = allRows.length > 0 || before > 0;
+        }
+        if (!reloaded && allRows.length) {
+          renderAll();
+          reloaded = true;
+        }
+        return {
+          ok: reloaded,
+          message: reloaded ? '修复率看板已刷新绑定数据' : '修复率看板未绑定文件，未找到缓存数据'
+        };
+      } catch (err) {
+        return { ok: false, message: err && err.message ? err.message : '修复率看板刷新失败' };
+      }
+    }
+    window.rdcRefresh = rdcRefresh;
+
+    window.addEventListener('message', async function (evt) {
+      const msg = evt.data || {};
+      if (msg.type === 'RDC_FORCE_REFRESH' || msg.type === 'RDC_REFRESH_REQUEST' || msg.action === 'refresh') {
+        const result = await rdcRefresh(msg);
+        try {
+          evt.source.postMessage({
+            type: 'RDC_REFRESH_ACK',
+            panelId: msg.panelId || 'repair_rate_dashboard',
+            ok: result.ok,
+            message: result.message,
+            requestId: msg.requestId || '',
+            timestamp: Date.now()
+          }, '*');
+        } catch (_) { }
+      }
+    });
+
+    /* 点击遮罩关闭设置弹窗 */
+    document.addEventListener('click', function (e) {
+      const modal = document.getElementById('settings-modal');
+      if (!modal || !modal.classList.contains('active')) return;
+      if (e.target === modal) closeSettings();
+    });
+
+  </script>
+</body>
+
+</html>
