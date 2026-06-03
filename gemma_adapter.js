@@ -117,9 +117,11 @@ window.GemmaAdapter = {
           const rising = trend.length >= 2 && trend[trend.length - 1] > trend[0];
           const byModel = Array.isArray(b.byModel) ? b.byModel : [];
           const aging = Array.isArray(b.aging) ? b.aging : [];
+          const repairRate = (b.repairRate === 0 || b.repairRate) ? self._num(b.repairRate) : null;
+          const fixed = self._num(b.fixed), scrap = self._num(b.scrap);
           return {
-            summary: `待修WIP ${total}件${high ? '(偏高)' : ''}${overdue.length ? `，超期 ${overdue.length} 件` : ''}`,
-            data: { board: true, total, high, overdue, trend, rising, byModel, aging }
+            summary: `待修WIP ${total}件${high ? '(偏高)' : ''}${overdue.length ? `，超期 ${overdue.length} 件` : ''}${repairRate !== null ? `，修复率 ${repairRate}%` : ''}`,
+            data: { board: true, total, high, overdue, trend, rising, byModel, aging, repairRate, fixed, scrap }
           };
         }
         const wip = ctx.wip ? String(ctx.wip) : '';
@@ -216,6 +218,7 @@ ${persons}`;
     let wipBlock;
     if (wp && wp.board) {
       let b = `*   **待修总量**：当前待修 WIP **${wp.total}** 件，${wp.high ? '已超过 20 件预警线，存在积压风险 ⚠️' : '处于可控区间'}。`;
+      if (wp.repairRate !== null) b += `\n*   **修复率**：近期闭环工单修复率约 **${wp.repairRate}%**（已修 ${wp.fixed} / 报废 ${wp.scrap}），${wp.repairRate >= 90 ? '维修质量良好' : wp.repairRate >= 75 ? '尚可，建议关注报废根因' : '偏低，需复盘报废与返修工单 ⚠️'}。`;
       if (wp.trend.length) b += `\n*   **积压趋势**：近 ${wp.trend.length} 日 ${wp.trend.join(' → ')}（${wp.rising ? '持续积压，需加快消化' : '趋于消化'}）。`;
       if (wp.byModel.length) b += `\n*   **机种分布**：${wp.byModel.slice(0, 3).map(([k, v]) => `${k} ${v} 件`).join('、')}，建议优先备料与人力倾斜。`;
       if (wp.aging.length) b += `\n*   **老化分布**：${wp.aging.map(([k, v]) => `${k} ${v} 件`).join('、')}。`;
@@ -318,6 +321,7 @@ ${advice}
       if (!d) return { text: '当前没有待修 WIP 数据。可在系统设置中填入「待修 WIP」数量，或接入工单状态数据源后自动监控。', trace };
       if (d.board) {
         let r = `当前待修 WIP **${d.total}** 件，${d.high ? '已超 20 件预警线 ⚠️' : '处于可控区间 ✅'}。`;
+        if (d.repairRate !== null) r += `近期修复率约 **${d.repairRate}%**（已修 ${d.fixed}/报废 ${d.scrap}）。`;
         if (d.trend.length) r += `近 ${d.trend.length} 日 ${d.trend.join('→')}（${d.rising ? '持续积压' : '趋于消化'}）。`;
         if (d.byModel.length) r += `\n机种分布：${d.byModel.slice(0, 3).map(([k, v]) => `${k} ${v}件`).join('、')}。`;
         if (d.aging.length) r += `\n老化分布：${d.aging.map(([k, v]) => `${k} ${v}件`).join('、')}。`;

@@ -1484,6 +1484,57 @@
       }
       aiAppendMsg(res.text, 'ai');
     }
+    // ===== 待修 WIP / 修复率：由工单状态数据源实时计算 =====
+    // buildDemoWipOrders(): 开箱即用的工单状态种子数据（真实接入后用解析结果替换）。
+    // computeWipBoard(): 把工单状态表聚合成待修总量 / 机种分布 / 老化分布 / 超期清单 / 积压趋势 / 修复率。
+    function buildDemoWipOrders(){
+      const today=new Date('2026-06-03'), dayMs=86400000;
+      const fmt=d=>new Date(today-d*dayMs).toISOString().slice(0,10);
+      const defectOf={'KSK-100':'不开机','ABC-200':'无显示','XYZ-300':'自动重启','DEF-400':'触摸失灵'};
+      const orders=[]; let seq=1;
+      const wo=d=>`WO-${fmt(d).replace(/-/g,'').slice(2)}-${String(seq++).padStart(3,'0')}`;
+      // 待修(WIP)分布：机种 -> 各工单已待修天数
+      const pending=[['KSK-100',[0,0,0,0,1,1,2,3,5,6,9]],['ABC-200',[0,0,0,1,1,2,4,6]],['XYZ-300',[0,0,1,2,4]],['DEF-400',[0,1,3,8]]];
+      pending.forEach(([model,ages])=>ages.forEach((a,i)=>{
+        const d=defectOf[model]||'其他'; const dv=(a>=8)?(model==='KSK-100'?'不开机':'触摸失灵'):(i%3===1?'黑屏':d);
+        orders.push({工单:wo(a),机种:model,状态:'待修',进站日期:fmt(a),完成日期:'',不良:dv});
+      }));
+      // 已修 / 报废：用于修复率与积压趋势回溯（已修 8 / 报废 2 → 修复率 80%）
+      const done=[['KSK-100',6,1,'已修'],['KSK-100',5,2,'已修'],['ABC-200',7,3,'已修'],['XYZ-300',5,2,'已修'],['DEF-400',6,4,'已修'],['ABC-200',8,5,'已修'],['KSK-100',4,1,'已修'],['XYZ-300',7,3,'已修'],['DEF-400',9,6,'报废'],['KSK-100',11,7,'报废']];
+      done.forEach(([model,inD,outD,st])=>orders.push({工单:wo(inD),机种:model,状态:st,进站日期:fmt(inD),完成日期:fmt(outD),不良:defectOf[model]||'其他'}));
+      return orders;
+    }
+    function computeWipBoard(orders){
+      if(!Array.isArray(orders)||!orders.length) return null;
+      const today=new Date('2026-06-03'), dayMs=86400000;
+      const txt=v=>String(v==null?'':v).trim();
+      const isPending=s=>/待修|在制|维修中|未修|WIP/i.test(s);
+      const isFixed=s=>/已修|修复|完成|OK|PASS/i.test(s);
+      const isScrap=s=>/报废|废弃|无法维修|NG/i.test(s);
+      const pDate=d=>{const t=new Date(txt(d).replace(/[./]/g,'-'));return isNaN(t)?null:t;};
+      const stOf=o=>txt(o.状态||o.status), mOf=o=>txt(o.机种||o.料号||o.板卡料号||o.model)||'未标机种';
+      const dOf=o=>txt(o.不良||o.不良现象||o.错误描述||o.defect)||'未标不良';
+      const ageOf=o=>{const d=pDate(o.进站日期||o.创建日期||o.日期);return d?Math.max(0,Math.floor((today-d)/dayMs)):0;};
+      const pend=orders.filter(o=>isPending(stOf(o)));
+      const fixed=orders.filter(o=>isFixed(stOf(o))), scrap=orders.filter(o=>isScrap(stOf(o)));
+      if(!pend.length && !fixed.length) return null;
+      const mm={}; pend.forEach(o=>{const m=mOf(o);mm[m]=(mm[m]||0)+1;});
+      const byModel=Object.entries(mm).sort((a,b)=>b[1]-a[1]);
+      const bk={'≤1天':0,'2-3天':0,'4-7天':0,'>7天':0};
+      pend.forEach(o=>{const a=ageOf(o);if(a<=1)bk['≤1天']++;else if(a<=3)bk['2-3天']++;else if(a<=7)bk['4-7天']++;else bk['>7天']++;});
+      const aging=Object.entries(bk);
+      const overdue=pend.map(o=>({工单:txt(o.工单||o.工单号||o.单号)||'—',机种:mOf(o),待修天数:ageOf(o),不良:dOf(o)})).filter(o=>o.待修天数>7).sort((a,b)=>b.待修天数-a.待修天数);
+      const trend=[];
+      for(let i=4;i>=0;i--){const day=new Date(today-i*dayMs);let c=0;orders.forEach(o=>{const inD=pDate(o.进站日期||o.创建日期||o.日期);if(!inD||inD>day)return;const outD=pDate(o.完成日期||o.出站日期);if((isFixed(stOf(o))||isScrap(stOf(o)))&&outD&&outD<=day)return;c++;});trend.push(c);}
+      const processed=fixed.length+scrap.length;
+      const repairRate=processed?Math.round(fixed.length/processed*1000)/10:null;
+      return {total:pend.length,byModel,aging,overdue,trend,repairRate,fixed:fixed.length,scrap:scrap.length,meta:'由工单状态数据源实时计算'};
+    }
+    function buildAIPayload(){
+      const orders=(state.wipOrders&&state.wipOrders.length)?state.wipOrders:buildDemoWipOrders();
+      const board=computeWipBoard(orders)||state.wipDemo||null;
+      return Object.assign({},state,{wipBoard:board});
+    }
     async function runGemmaAnalysis() {
       const mask = document.getElementById('aiMask');
       const loading = document.getElementById('aiLoading');
@@ -1492,7 +1543,7 @@
       result.innerHTML = '';
       loading.style.display = 'block';
       try {
-        const report = await window.GemmaAdapter.analyze('integrated', state);
+        const report = await window.GemmaAdapter.analyze('integrated', buildAIPayload());
         aiAppendAgent(report);
       } catch (e) {
         aiAppendMsg(`分析失败: ${e.message}`, 'ai');
@@ -1509,7 +1560,7 @@
       aiAppendMsg(q, 'user');
       loading.style.display = 'block';
       try {
-        const answer = await window.GemmaAdapter.chat('integrated', q, state);
+        const answer = await window.GemmaAdapter.chat('integrated', q, buildAIPayload());
         aiAppendAgent(answer);
       } catch (e) {
         aiAppendMsg('抱歉，回答失败了，请重试。', 'ai');
@@ -1958,7 +2009,12 @@
         module3:{key:'module3',title:'今日个人产出 (DEMO)',chartType:'bar',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'',manualJson:JSON.stringify({labels:["张三","李四","王五","赵六"],values:[15,12,10,8],detailMap:{"张三":[{板卡料号:"KSK-100",错误描述:"不开机",数量:5},{板卡料号:"KSK-100",错误描述:"黑屏",数量:4},{板卡料号:"ABC-200",错误描述:"无显示",数量:3},{板卡料号:"XYZ-300",错误描述:"自动重启",数量:3}],"李四":[{板卡料号:"KSK-100",错误描述:"不开机",数量:4},{板卡料号:"ABC-200",错误描述:"黑屏",数量:4},{板卡料号:"DEF-400",错误描述:"触摸失灵",数量:4}],"王五":[{板卡料号:"ABC-200",错误描述:"无显示",数量:4},{板卡料号:"XYZ-300",错误描述:"自动重启",数量:3},{板卡料号:"KSK-100",错误描述:"不开机",数量:3}],"赵六":[{板卡料号:"DEF-400",错误描述:"触摸失灵",数量:3},{板卡料号:"KSK-100",错误描述:"黑屏",数量:3},{板卡料号:"ABC-200",错误描述:"无显示",数量:2}]},meta:'DEMO数据'},null,2),currentData:null},
         module4:{key:'module4',title:'今日个人产出 (DEMO-B)',chartType:'bar',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'',manualJson:JSON.stringify({labels:["王五","李四","张三","赵六"],values:[14,11,9,7],detailMap:{},meta:'DEMO数据'},null,2),currentData:null}
       },
-      // 待修 WIP 演示数据（DEMO）。真实接入后由工单状态数据源替换此结构即可。
+      // 工单状态数据源（真实接入点）。接入后把工单状态表解析成
+      // [{工单, 机种, 状态, 进站日期, 完成日期, 不良}] 写入此数组，
+      // computeWipBoard() 会据此实时计算待修 WIP / 修复率 / 老化 / 超期。
+      // 留空时自动回退到 buildDemoWipOrders() 的开箱演示数据。
+      wipOrders: [],
+      // 待修 WIP 兜底演示数据（DEMO，仅在计算失败时使用）。
       wipDemo: {
         total: 28,
         byModel: [["KSK-100",11],["ABC-200",8],["XYZ-300",5],["DEF-400",4]],
