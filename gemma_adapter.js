@@ -118,6 +118,36 @@ window.GemmaAdapter = {
         const rank = sorted.findIndex(x => x.n === name) + 1;
         const person = peopleAll().find(p => p.name === name);
         return { summary: `${name} ${v}件，排名第${rank}`, data: { name, v, rank, total: names.length, person } };
+      },
+      get_defect_detail(args) {
+        const dm = ctx.staff.detailMap || {};
+        const people = Object.keys(dm).filter(k => Array.isArray(dm[k]) && dm[k].length);
+        if (!people.length) return { summary: '无维修明细数据', data: null };
+        const val = r => self._num(r['数量'] ?? r.qty ?? r.value ?? 1) || 1;
+        const model = r => r['板卡料号'] || r['料号'] || r['机种'] || r.model || '未标料号';
+        const defect = r => r['错误描述'] || r['不良现象'] || r['不良描述'] || r.defect || '未标不良';
+        const personAgg = {}, defectG = {}, modelG = {}; let total = 0;
+        people.forEach(name => {
+          const combo = {};
+          (dm[name] || []).forEach(r => {
+            const q = val(r), m = model(r), d = defect(r), key = m + '|' + d;
+            combo[key] = (combo[key] || 0) + q;
+            defectG[d] = (defectG[d] || 0) + q;
+            modelG[m] = (modelG[m] || 0) + q;
+            total += q;
+          });
+          personAgg[name] = Object.entries(combo).map(([k, v]) => ({ model: k.split('|')[0], defect: k.split('|')[1], qty: v })).sort((a, b) => b.qty - a.qty);
+        });
+        const topDefects = Object.entries(defectG).sort((a, b) => b[1] - a[1]);
+        const topModels = Object.entries(modelG).sort((a, b) => b[1] - a[1]);
+        let one = null;
+        if (args.name) { const key = people.find(n => n === args.name || n.includes(args.name) || args.name.includes(n)); if (key) one = { name: key, items: personAgg[key] }; }
+        const fmt = it => `${it.model} ${it.defect} ${it.qty}片`;
+        return {
+          summary: one ? `${one.name}: ${one.items.slice(0, 2).map(fmt).join('，')}${one.items.length > 2 ? '…' : ''}`
+                       : `明细${total}片，高频不良「${topDefects[0][0]}」${topDefects[0][1]}片，机种「${topModels[0][0]}」${topModels[0][1]}片`,
+          data: { personAgg, topDefects, topModels, total, one }
+        };
       }
     };
   },
@@ -128,6 +158,7 @@ window.GemmaAdapter = {
     const so = this._call(trace, tools, 'get_staff_output', {});
     const at = this._call(trace, tools, 'get_attendance', {});
     const wp = this._call(trace, tools, 'get_wip', {});
+    const dd = this._call(trace, tools, 'get_defect_detail', {});
 
     const trendBlock = tr
       ? `*   **概况**：近 ${tr.values.length} 日维修量${tr.last >= tr.prev ? '呈上升态势' : '出现回落'}，峰值出现在 ${tr.labels[tr.peakIdx] || ('第' + (tr.peakIdx + 1) + '点')}，达到 ${tr.values[tr.peakIdx]} 件，区间均值约 ${tr.avg} 件/日。
@@ -143,7 +174,23 @@ window.GemmaAdapter = {
     let attBlock = `*   **出勤概况**：计划 ${at.plan || '—'} 人，实际在岗 ${at.actual || '—'} 人，出勤率 ${at.plan ? at.rate + '%' : '—'}（白班 ${at.day} / 夜班 ${at.night}）。`;
     if (at.absentNames.length) attBlock += `\n*   **缺勤关注**：${at.absentNames.slice(0, 5).join('、')}${at.absentNames.length > 5 ? ' 等' : ''} 未出勤，建议跟进顶岗安排。`;
 
+    let detailBlock;
+    if (dd && dd.total) {
+      const topD = dd.topDefects.slice(0, 3).map(([n, v]) => `**${n}**（${v} 片）`).join('、');
+      const topM = dd.topModels.slice(0, 3).map(([n, v]) => `**${n}**（${v} 片）`).join('、');
+      const persons = Object.keys(dd.personAgg).slice(0, 5).map(name => {
+        const items = dd.personAgg[name].slice(0, 3).map(it => `${it.model} ${it.defect} ${it.qty} 片`).join('，');
+        return `*   **${name}**：${items}${dd.personAgg[name].length > 3 ? ' 等' : ''}。`;
+      }).join('\n');
+      detailBlock = `*   **高频不良现象**：${topD}，建议优先排查共性根因。
+*   **高频机种/料号**：${topM}。
+${persons}`;
+    } else {
+      detailBlock = `*   暂无明细（不良现象 / 机种）数据。绑定"维修明细 XLSX"或在模块 detailMap 中填入「板卡料号 + 错误描述」后，可自动按「维修员 × 机种 × 不良现象」下钻分析。`;
+    }
+
     let advice = `*   建议通过 Gemma 4 对历史重复工单聚类，提前预防高频故障项。`;
+    if (dd && dd.total && dd.topDefects.length) advice = `*   高频不良「**${dd.topDefects[0][0]}**」已累计 ${dd.topDefects[0][1]} 片，建议针对该现象组织专题根因分析并固化 SOP / 防呆措施。\n` + advice;
     if (wp) advice = `*   当前 WIP 约 ${wp.wip} 件，${wp.high ? '存在积压风险，建议临时增援夜班或优先处理在制工单' : '处于健康水位，维持现有排班即可'}。\n` + advice;
 
     const text = `### Gemma 4 智能维修分析报告
@@ -154,10 +201,13 @@ ${trendBlock}
 **2. 人员效能评估**
 ${staffBlock}
 
-**3. 出勤与排班**
+**3. 维修明细洞察（不良现象 × 机种）**
+${detailBlock}
+
+**4. 出勤与排班**
 ${attBlock}
 
-**4. 改善建议**
+**5. 改善建议**
 ${advice}
 
 *注意：此报告由 Gemma 4 (Demo Mode) 于 ${this._ts()} 经多工具编排自动生成。*`;
@@ -182,8 +232,26 @@ ${advice}
     const names = ctx.staff.labels || [];
     const hitName = names.find(n => n && q.includes(n));
     if (hitName) {
+      if (this._hit(q, ['明细', '不良', '故障', '现象', '修了', '修什么', '什么板', '料号', '机种', '错误', '描述', '哪些'])) {
+        const dd = this._call(trace, tools, 'get_defect_detail', { name: hitName });
+        if (dd && dd.one && dd.one.items.length) {
+          const lines = dd.one.items.map(it => `• ${it.model} ${it.defect} **${it.qty}** 片`).join('\n');
+          const sum = dd.one.items.reduce((a, b) => a + b.qty, 0);
+          return { text: `**${hitName}** 维修明细（按机种 × 不良现象）：\n${lines}\n合计 ${sum} 片。`, trace };
+        }
+        return { text: `暂无 **${hitName}** 的维修明细数据（需绑定含「错误描述」字段的维修明细报表）。`, trace };
+      }
       const d = this._call(trace, tools, 'get_person', { name: hitName });
       return { text: `**${d.name}** 今日产出 ${d.v} 件，在 ${d.total} 名工程师中排名第 ${d.rank}${d.rank === 1 ? '（产出冠军 🏆）' : ''}。${d.person ? `当前状态：${d.person._on ? '在岗' : (d.person.status || '未到')}，班次：${d.person.shift || '—'}。` : ''}`, trace };
+    }
+
+    // 不良明细 / 高频故障（未指定具体人员）
+    if (this._hit(q, ['不良', '故障', '现象', '明细', '高频', '什么故障', '哪些故障', '错误描述', '修了什么', '板卡', '料号'])) {
+      const dd = this._call(trace, tools, 'get_defect_detail', {});
+      if (!dd || !dd.total) return { text: '当前没有维修明细（不良现象）数据，请绑定含「错误描述」字段的维修明细报表。', trace };
+      const topD = dd.topDefects.slice(0, 5).map(([n, v], i) => `${i + 1}. **${n}** ${v} 片`).join('\n');
+      const topM = dd.topModels.slice(0, 3).map(([n, v]) => `${n}（${v} 片）`).join('、');
+      return { text: `近期高频不良现象 TOP5：\n${topD}\n高频机种：${topM}。\n建议对排名靠前的不良现象做专题根因分析。`, trace };
     }
 
     // 趋势
@@ -229,9 +297,9 @@ ${advice}
     }
 
     if (this._hit(q, ['你好', '您好', 'hi', 'hello', '帮助', '能做什么', '会什么', '怎么用'])) {
-      return { text: `你好，我是 Gemma 4 维修智能助手。你可以问我：\n• 「维修二组今天出勤怎么样？」\n• 「张三产出多少？」\n• 「近期维修趋势如何？」\n• 「当前 WIP 高不高？」\n• 「有什么排班建议？」`, trace };
+      return { text: `你好，我是 Gemma 4 维修智能助手。你可以问我：\n• 「维修二组今天出勤怎么样？」\n• 「张三产出多少？」\n• 「张三修了哪些不良？」\n• 「近期高频不良现象有哪些？」\n• 「近期维修趋势如何？」\n• 「当前 WIP 高不高？」\n• 「有什么排班建议？」`, trace };
     }
-    return { text: `我可以基于看板数据回答出勤、产出趋势、个人/班组产能、WIP、排班建议等问题。试试「维修一组在岗几人」。`, trace };
+    return { text: `我可以基于看板数据回答出勤、产出趋势、维修明细（不良现象 × 机种）、个人/班组产能、WIP、排班建议等问题。试试「张三修了哪些不良」。`, trace };
   },
 
   /* ════════════════════════════════════════════
