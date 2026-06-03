@@ -58,10 +58,19 @@ window.GemmaAdapter = {
    *  综合维修看板：工具注册表
    * ════════════════════════════════════════════ */
   _ctxIntegrated(data) {
+    const mods = data?.modules || {};
+    // WIP（待修/在制）可设在任意模块的配置或数据上，按顺序取第一个非空值
+    let wip = '';
+    for (const k of ['module1', 'module2', 'module3', 'module4']) {
+      const m = mods[k]; if (!m) continue;
+      const w = (m.currentData && m.currentData.wip) || m.wip;
+      if (w !== undefined && w !== null && String(w).trim() !== '') { wip = String(w).trim(); break; }
+    }
     return {
       att:   data?.attendance?.currentData || data?.attendance || {},
-      trend: data?.modules?.module1?.currentData || data?.modules?.module1 || {},
-      staff: data?.modules?.module3?.currentData || data?.modules?.module3 || {}
+      trend: mods.module1?.currentData || mods.module1 || {},
+      staff: mods.module3?.currentData || mods.module3 || {},
+      wip
     };
   },
   _toolsIntegrated(ctx) {
@@ -98,7 +107,7 @@ window.GemmaAdapter = {
                  data: { plan, actual, rate: self._pct(actual, plan), day: self._num(s.dayShiftActual), night: self._num(s.nightShiftActual), absentNames, lateNames } };
       },
       get_wip() {
-        const wip = ctx.trend.wip ? String(ctx.trend.wip) : '';
+        const wip = ctx.wip ? String(ctx.wip) : '';
         if (!wip) return { summary: '无 WIP 数据', data: null };
         const high = self._num(wip) >= 10;
         return { summary: `WIP ${wip}件${high ? '(偏高)' : '(健康)'}`, data: { wip, high } };

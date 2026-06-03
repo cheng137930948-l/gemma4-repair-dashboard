@@ -1253,7 +1253,7 @@
               <input id="cfgRefreshSec" type="number" min="0" step="10" />
             </div>
             <div class="field" id="cfgWipField">
-              <label>WIP（可留空）</label>
+              <label>待修 WIP（可留空，填当前待修/在制数量）</label>
               <input id="cfgWip" type="text" placeholder="例如：166" />
             </div>
           </div>
@@ -2608,7 +2608,7 @@
       document.getElementById('cfgDeptKeyword').value=cfg.deptKeyword||'工程处';
       document.getElementById('cfgDetailKeyword').value=cfg.detailKeyword||'产线维修';
       document.getElementById('chartTypeField').style.display=isAttendance?'none':'flex';
-      document.getElementById('cfgWipField').style.display='none';
+      document.getElementById('cfgWipField').style.display=isAttendance?'none':'flex';
       document.getElementById('cfgDeptKeywordField').style.display=isAttendance?'flex':'none';
       document.getElementById('cfgDetailKeywordField2').style.display=isAttendance?'flex':'none';
       if(!isAttendance)document.getElementById('cfgChartType').value=cfg.chartType||'bar';
@@ -2619,7 +2619,7 @@
     function saveConfig(){
       if(!editingKey)return;const isAttendance=editingKey==='attendance';const cfg=isAttendance?state.attendance:state.modules[editingKey];
       cfg.title=document.getElementById('cfgTitle').value.trim()||cfg.title;cfg.sourceType=document.getElementById('cfgSourceType').value;cfg.sourceUrl=document.getElementById('cfgSourceUrl').value.trim();cfg.refreshSec=Number(document.getElementById('cfgRefreshSec').value||0);cfg.manualJson=document.getElementById('cfgManualJson').value.trim();cfg.boundFileName=document.getElementById('cfgBoundFileName').value.trim();
-      if(isAttendance){cfg.deptKeyword=document.getElementById('cfgDeptKeyword').value.trim()||'工程处';cfg.detailKeyword=document.getElementById('cfgDetailKeyword').value.trim();}else{cfg.chartType=document.getElementById('cfgChartType').value;cfg.wip='';}
+      if(isAttendance){cfg.deptKeyword=document.getElementById('cfgDeptKeyword').value.trim()||'工程处';cfg.detailKeyword=document.getElementById('cfgDetailKeyword').value.trim();}else{cfg.chartType=document.getElementById('cfgChartType').value;cfg.wip=document.getElementById('cfgWip').value.trim();}
       try{if(cfg.sourceType==='mock'||cfg.sourceType==='manual-json'){if(isAttendance)normalizeAttendanceData(JSON.parse(cfg.manualJson));else normalizeModuleData(JSON.parse(cfg.manualJson));}if(cfg.sourceType==='bound-file'&&!cfg.boundFileName){throw new Error('请先绑定共享盘文件，或切回 URL / JSON 模式');}}catch(e){toast('配置校验失败：'+e.message);return;}
       saveState();
       if(isAttendance){document.getElementById('attendancePanelTitle').textContent=cfg.title;renderAttendance();startTimer('attendance',true);refreshAttendance(true);}else{renderModule(editingKey,true);startTimer(editingKey,false);refreshModule(editingKey,true);}
