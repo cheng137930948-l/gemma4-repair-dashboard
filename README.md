@@ -10,7 +10,7 @@
 ## 核心功能
 
 - **产线维修综合看板**：出勤、维修趋势、个人产出等综合分析视图，并由 Gemma 适配层自动生成 WIP / 修复率管理汇报。
-- **修复率数字孪生看板**：面向 WIP 与不良分析的修复率监控，聚焦待修积压、超期工单预警、不良 TOP 缺陷、原因分布与各组修复率排行，驱动闭环改善。
+- **维修修复率看板**：面向 WIP 与不良分析的修复率监控，聚焦待修积压、超期工单预警、不良 TOP 缺陷、原因分布与各组修复率排行，驱动闭环改善。
 - **领退料异常预警看板**：维修领料、退料闭环与超时异常预警，确保备件闭环管理。
 - **Demo 数据展示**：内置脱敏演示数据与页面内演示数据，离线即可完整演示。
 - **Gemma AI 分析演示**：`gemma_adapter.js` 以 tool-registry + planner + trace 的方式模拟智能体多步推理，并预留真实 Gemma 4 后端的接入位置。
@@ -30,14 +30,14 @@
 
 **1. 前端 Demo 模式（默认）**
 
-- `gemma_config.js` 保存模型配置（`modelId: gemma-4-31b-it`）与 `demoMode` 开关，默认 `demoMode: true`。
+- `gemma_config.js` 保存模型配置（`modelId: gemma-4-26b-a4b-it`）与 `demoMode` 开关，默认 `demoMode: true`。
 - `gemma_adapter.js` 用于模拟/封装 AI 分析输出，离线即可演示智能体推理链路（planner / 工具调用 / trace）。
 - Demo 模式下不真实调用任何外部 AI 服务，不发送生产数据。
 
 **2. 真实 Gemma 4 后端模式（可选 / 加分项）**
 
-- `backend/` 提供一个精简 Flask 后端，通过 `google-genai` SDK 真实调用 **Gemma 4（`gemma-4-31b-it`）**。
-- 后端将 `backend/skills/repair-report/SKILL.md` 注入为分析 Prompt，生成日报 / 周报 / 异常预警等管理汇报。
+- `backend/` 提供一个精简 Flask 后端，通过 `google-genai` SDK 真实调用 **Gemma 4（`gemma-4-26b-a4b-it`）**。
+- 后端实现了 **Gemma 4 原生函数调用循环**（`backend/agent.py` + `backend/tools.py`）：把 `SKILL.md` 与工具清单注入 prompt，由模型自主输出 ```` ```tool_code ````、后端真实执行 Python 工具并以 ```` ```tool_output ```` 回灌，多轮循环直至生成最终汇报；每一步工具调用都记录在 `trace` 并落盘为 `backend/output/agent_run_*.log` 运行日志。
 - 在 `backend/.env`（参考 `backend/.env.example`）填入自己的 `GOOGLE_API_KEY` 后即可启用，密钥不会进入仓库。
 - 将 `gemma_config.js` 中的 `demoMode` 改为 `false`，前端即对接本地后端 `http://127.0.0.1:8000`。
 - 详细启动步骤见 `backend/README.md`。
@@ -64,29 +64,33 @@
 
 ## 当前 Gemma 4 集成状态
 
-仓库已包含一个可真实调用 **Gemma 4（`gemma-4-31b-it`）** 的精简后端（见 `backend/`），默认前端仍以 Demo 模式离线演示。为了公开参赛仓库安全，仓库不包含真实 API Key（使用 `.env.example` 占位），也不会默认向外部 AI 服务发送生产数据；启用真实后端需自行在本地 `.env` 配置 `GOOGLE_API_KEY`。
+仓库已包含一个可真实调用 **Gemma 4（`gemma-4-26b-a4b-it`）** 的精简后端（见 `backend/`），并在后端实现了 **Gemma 4 原生函数调用循环**（模型自主调用 `get_wip` 等工具、后端真实执行并回灌、多轮推理后产出汇报，附运行日志）。默认前端仍以 Demo 模式离线演示。为了公开参赛仓库安全，仓库不包含真实 API Key（使用 `.env.example` 占位），也不会默认向外部 AI 服务发送生产数据；启用真实后端需自行在本地 `.env` 配置 `GOOGLE_API_KEY`。
 
 ## 目录结构
 
 ```text
 gemma4-repair-dashboard/
 ├─ backend/                       # 真实 Gemma 4 后端（可选）
-│  ├─ report_server.py            # Flask 服务，调用 gemma-4-31b-it
+│  ├─ report_server.py            # Flask 服务，路由 + 单轮兜底 + 录制回放缓存
+│  ├─ agent.py                    # Gemma 4 原生函数调用循环（解析/执行/回灌/trace/重试/时长预算）
+│  ├─ tools.py                    # 后端工具注册表（get_wip 等，返回 {summary,data}）
+│  ├─ demo_data.py                # 三看板脱敏演示数据（后端兜底，口径与前端一致）
+│  ├─ warm_cache.py               # 录制预热：三看板各真跑一次并缓存，供回放模式秒回
 │  ├─ requirements.txt            # 后端依赖
-│  ├─ .env.example                # API Key 占位（自行复制为 .env）
-│  ├─ README.md                   # 后端启动说明
+│  ├─ .env.example                # API Key 占位 + 模型/超时/回放等配置说明
+│  ├─ README.md                   # 后端启动说明（含时延与录制回放）
 │  └─ skills/repair-report/SKILL.md  # 注入为分析 Prompt 的汇报技能
 ├─ data/demo/                     # 脱敏演示数据（integrated / material）
 ├─ icons/                         # 图标资源
 ├─ libs/                          # 本地离线依赖，例如 xlsx.full.min.js
 ├─ index.html                     # 参赛 Demo 首页（三看板入口）
 ├─ README.md                      # 项目说明
-├─ gemma_config.js                # Gemma 模型配置（gemma-4-31b-it / demoMode）
+├─ gemma_config.js                # Gemma 模型配置（gemma-4-26b-a4b-it / demoMode）
 ├─ gemma_adapter.js               # Gemma AI 分析适配层（planner / 工具 / trace）
 ├─ material_dashboard.js          # 领退料看板脚本
 ├─ 产线维修综合看板_v3.html         # 产线维修综合看板
 ├─ 产线维修课领退料看板.html         # 产线维修领退料看板
-└─ 修复率看板.html                  # 修复率数字孪生看板
+└─ 修复率看板.html                  # 维修修复率看板
 ```
 
 ## 常见问题

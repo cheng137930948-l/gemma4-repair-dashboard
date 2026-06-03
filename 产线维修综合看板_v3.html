@@ -984,7 +984,7 @@
       </div>
 
       <div class="topbar-actions">
-        <button class="btn btn-green" id="btnAIAnalyze" style="border-color:var(--green);box-shadow:0 0 10px rgba(0,255,136,.2);">✨ Gemma 4 智能分析</button>
+        <a class="btn btn-green" href="index.html#ai" style="border-color:var(--green);box-shadow:0 0 10px rgba(0,255,136,.2);text-decoration:none;display:inline-flex;align-items:center;" title="三看板统一在首页 AI 智能分析中心进行">✨ AI 智能分析中心</a>
         <button class="btn btn-outline" id="btnOpenCfg" style="border-color:rgba(0,220,255,.4); color:var(--cyan);">⚙️ 系统设置</button>
         <button class="btn" id="btnRefreshAll">全部刷新</button>
         <button class="btn" id="btnExport">导出</button>
@@ -2850,7 +2850,7 @@
       scheduleSyncBroadcast('init');
     }
 
-      document.getElementById('btnAIAnalyze').addEventListener('click', runGemmaAnalysis);
+      { const _b = document.getElementById('btnAIAnalyze'); if (_b) _b.addEventListener('click', runGemmaAnalysis); }
       document.getElementById('btnAIClose').addEventListener('click', () => document.getElementById('aiMask').classList.remove('show'));
       document.getElementById('btnAIRefresh').addEventListener('click', runGemmaAnalysis);
       document.getElementById('btnAISend').addEventListener('click', () => aiSendChat());

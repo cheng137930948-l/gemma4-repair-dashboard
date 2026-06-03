@@ -169,6 +169,175 @@
         .card:nth-child(3) {
             animation-delay: 0.4s;
         }
+
+        /* ---------- 统一 AI 智能分析中心 ---------- */
+        .ai-center-cta {
+            display: flex;
+            justify-content: center;
+            margin: 0 0 2.5rem;
+        }
+        .ai-center-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.9rem 2rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.35);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ai-center-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 40px rgba(59, 130, 246, 0.45);
+        }
+        .ai-modal-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.78);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 1.5rem;
+        }
+        .ai-modal-mask.open { display: flex; }
+        .ai-modal {
+            width: 100%;
+            max-width: 860px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface);
+            border: 1px solid var(--card-border);
+            border-radius: 1.25rem;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+        }
+        .ai-modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .ai-modal-head h3 { font-size: 1.25rem; font-weight: 700; }
+        .ai-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-sub);
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .ai-modal-body { padding: 1.5rem; overflow-y: auto; }
+        .ai-field { margin-bottom: 1.1rem; }
+        .ai-field > label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            margin-bottom: 0.5rem;
+        }
+        .ai-chips { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+        .ai-chip {
+            padding: 0.5rem 1.1rem;
+            border-radius: 999px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            color: var(--text-sub);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .ai-chip.active {
+            border-color: var(--primary);
+            color: #fff;
+            background: rgba(59, 130, 246, 0.18);
+        }
+        .ai-select {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border-radius: 0.6rem;
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid var(--card-border);
+            font-size: 0.95rem;
+        }
+        .ai-run-btn {
+            width: 100%;
+            padding: 0.85rem;
+            margin-top: 0.4rem;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            border: none;
+            border-radius: 0.7rem;
+            cursor: pointer;
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+        }
+        .ai-run-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .ai-status {
+            margin-top: 1.2rem;
+            font-size: 0.9rem;
+            color: var(--text-sub);
+        }
+        .ai-trace {
+            margin-top: 1rem;
+            border: 1px solid var(--card-border);
+            border-radius: 0.7rem;
+            overflow: hidden;
+        }
+        .ai-trace-head {
+            padding: 0.6rem 0.9rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--accent);
+            background: rgba(16, 185, 129, 0.08);
+        }
+        .ai-trace-step {
+            padding: 0.55rem 0.9rem;
+            font-size: 0.82rem;
+            border-top: 1px solid var(--card-border);
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            color: var(--text-sub);
+        }
+        .ai-trace-step b { color: var(--primary); }
+        .ai-report {
+            margin-top: 1.2rem;
+            padding: 1.2rem;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 0.7rem;
+            line-height: 1.7;
+            font-size: 0.94rem;
+            white-space: normal;
+        }
+        .ai-report h1, .ai-report h2, .ai-report h3 {
+            margin: 1rem 0 0.5rem;
+            color: #fff;
+        }
+        .ai-report h1 { font-size: 1.2rem; }
+        .ai-report h2 { font-size: 1.08rem; }
+        .ai-report h3 { font-size: 1rem; }
+        .ai-report ul { margin: 0.4rem 0 0.8rem 1.2rem; }
+        .ai-report li { margin-bottom: 0.25rem; }
+        .ai-report p { margin: 0.4rem 0; }
+        .ai-report strong { color: #fff; }
+        .ai-badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 999px;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        .ai-badge.live { background: rgba(16,185,129,.15); color: var(--accent); border: 1px solid rgba(16,185,129,.3); }
+        .ai-badge.demo { background: rgba(59,130,246,.15); color: var(--primary); border: 1px solid rgba(59,130,246,.3); }
     </style>
 </head>
 <body>
@@ -183,6 +352,13 @@
     </header>
 
     <main>
+      <div style="width:100%;max-width:1000px;display:flex;flex-direction:column;">
+        <div class="ai-center-cta">
+            <button class="ai-center-btn" id="openAiCenter">
+                🤖 AI 智能分析中心
+                <span style="font-weight:500;opacity:.85;font-size:.85rem;">三看板统一分析</span>
+            </button>
+        </div>
         <div class="cards-container">
             <a href="产线维修综合看板_v3.html" class="card">
                 <div class="card-icon">📊</div>
@@ -206,7 +382,7 @@
 
             <a href="修复率看板.html" class="card">
                 <div class="card-icon">🔧</div>
-                <h2 class="card-title">修复率数字孪生看板</h2>
+                <h2 class="card-title">维修修复率看板</h2>
                 <p class="card-desc">面向 WIP 与不良分析的修复率监控。聚焦待修积压、超期工单预警、不良 TOP 缺陷与各组修复率排行，驱动闭环改善。</p>
                 <div class="card-footer">
                     <span>立即进入</span>
@@ -214,11 +390,171 @@
                 </div>
             </a>
         </div>
+      </div>
     </main>
 
     <footer>
         <p>© 2026 Gemma 4 Competition Entry. All rights reserved.</p>
         <p style="margin-top: 0.5rem; opacity: 0.6;">* 此版本已进行脱敏处理，所有数据均为模拟。不可用于生产环境。</p>
     </footer>
+
+    <!-- ============ 统一 AI 智能分析中心 ============ -->
+    <div class="ai-modal-mask" id="aiModalMask">
+        <div class="ai-modal">
+            <div class="ai-modal-head">
+                <h3>🤖 AI 智能分析中心 <span id="aiModeBadge" class="ai-badge demo">演示模式</span></h3>
+                <button class="ai-modal-close" id="aiModalClose">&times;</button>
+            </div>
+            <div class="ai-modal-body">
+                <p style="font-size:.88rem;color:var(--text-sub);margin-bottom:1.2rem;line-height:1.6;">
+                    三个看板的分析统一在这里进行。后端由一个 <b style="color:var(--text);">Gemma 4 原生函数调用循环</b>驱动：
+                    模型自主调用取数工具、多轮推理后给出结论前置的管理汇报。
+                </p>
+
+                <div class="ai-field">
+                    <label>选择看板</label>
+                    <div class="ai-chips" id="aiBoardChips">
+                        <div class="ai-chip active" data-board="integrated">📊 产线维修综合</div>
+                        <div class="ai-chip" data-board="repair">🔧 维修修复率</div>
+                        <div class="ai-chip" data-board="material">📦 领退料</div>
+                    </div>
+                </div>
+
+                <div class="ai-field">
+                    <label>报告类型</label>
+                    <select class="ai-select" id="aiReportType">
+                        <option value="daily">日报</option>
+                        <option value="weekly">周报</option>
+                        <option value="monthly">月报</option>
+                        <option value="summary">综合分析报告</option>
+                        <option value="material">物料专项报告</option>
+                        <option value="overtime">超时专项报告</option>
+                    </select>
+                </div>
+
+                <button class="ai-run-btn" id="aiRunBtn">开始分析</button>
+
+                <div class="ai-status" id="aiStatus"></div>
+                <div id="aiTraceWrap"></div>
+                <div id="aiReportWrap"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="gemma_config.js"></script>
+    <script>
+    (function () {
+        const cfg = window.RDC_AI_CONFIG || {};
+        const backendBase = (cfg.backendBaseUrl || "http://127.0.0.1:8000").replace(/\/+$/, "");
+        const mask = document.getElementById("aiModalMask");
+        const statusEl = document.getElementById("aiStatus");
+        const traceWrap = document.getElementById("aiTraceWrap");
+        const reportWrap = document.getElementById("aiReportWrap");
+        const runBtn = document.getElementById("aiRunBtn");
+        const badge = document.getElementById("aiModeBadge");
+        let board = "integrated";
+
+        const BOARD_LABEL = { integrated: "产线维修综合看板", repair: "维修修复率看板", material: "产线维修领退料看板" };
+
+        function openModal() { mask.classList.add("open"); }
+        function closeModal() { mask.classList.remove("open"); }
+        document.getElementById("openAiCenter").addEventListener("click", openModal);
+        document.getElementById("aiModalClose").addEventListener("click", closeModal);
+        // 从各看板「前往 AI 智能分析中心」跳转时（index.html#ai）自动打开
+        if (location.hash === "#ai") openModal();
+        window.addEventListener("hashchange", () => { if (location.hash === "#ai") openModal(); });
+        mask.addEventListener("click", e => { if (e.target === mask) closeModal(); });
+
+        document.getElementById("aiBoardChips").addEventListener("click", e => {
+            const chip = e.target.closest(".ai-chip");
+            if (!chip) return;
+            document.querySelectorAll("#aiBoardChips .ai-chip").forEach(c => c.classList.remove("active"));
+            chip.classList.add("active");
+            board = chip.dataset.board;
+        });
+
+        // 极简 Markdown 渲染（标题/粗体/列表/段落）
+        function renderMarkdown(md) {
+            const lines = (md || "").split("\n");
+            let html = "", inList = false;
+            const inline = s => s
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+            for (let raw of lines) {
+                const line = raw.trim();
+                if (!line) { if (inList) { html += "</ul>"; inList = false; } continue; }
+                let m;
+                if ((m = line.match(/^###\s+(.*)/))) { if (inList) { html += "</ul>"; inList = false; } html += "<h3>" + inline(m[1]) + "</h3>"; }
+                else if ((m = line.match(/^##\s+(.*)/))) { if (inList) { html += "</ul>"; inList = false; } html += "<h2>" + inline(m[1]) + "</h2>"; }
+                else if ((m = line.match(/^#\s+(.*)/))) { if (inList) { html += "</ul>"; inList = false; } html += "<h1>" + inline(m[1]) + "</h1>"; }
+                else if ((m = line.match(/^[-*]\s+(.*)/))) { if (!inList) { html += "<ul>"; inList = true; } html += "<li>" + inline(m[1]) + "</li>"; }
+                else if ((m = line.match(/^\d+[.、]\s*(.*)/))) { if (!inList) { html += "<ul>"; inList = true; } html += "<li>" + inline(m[1]) + "</li>"; }
+                else { if (inList) { html += "</ul>"; inList = false; } html += "<p>" + inline(line) + "</p>"; }
+            }
+            if (inList) html += "</ul>";
+            return html;
+        }
+
+        function renderTrace(trace) {
+            if (!Array.isArray(trace) || !trace.length) { traceWrap.innerHTML = ""; return; }
+            let h = '<div class="ai-trace"><div class="ai-trace-head">🔧 Gemma 4 函数调用轨迹（共 ' + trace.length + ' 步）</div>';
+            trace.forEach((s, i) => {
+                const args = s.args && Object.keys(s.args).length ? "(" + JSON.stringify(s.args) + ")" : "()";
+                h += '<div class="ai-trace-step"><b>#' + (s.step ?? i) + '</b> ' + (s.tool || "?") + args +
+                     (s.summary ? ' — ' + String(s.summary).replace(/</g, "&lt;") : "") + "</div>";
+            });
+            h += "</div>";
+            traceWrap.innerHTML = h;
+        }
+
+        let _timer = null;
+        async function runAnalysis() {
+            runBtn.disabled = true;
+            runBtn.textContent = "分析中…";
+            traceWrap.innerHTML = "";
+            reportWrap.innerHTML = "";
+            const reportType = document.getElementById("aiReportType").value;
+            const t0 = Date.now();
+            const updateStatus = () => {
+                const sec = Math.round((Date.now() - t0) / 1000);
+                statusEl.innerHTML = "⏳ 正在调用 Gemma 4 多轮函数调用循环取数与推理…（" +
+                    BOARD_LABEL[board] + "）已等待 <b>" + sec + "s</b>。<br>" +
+                    "<span style='font-size:.82rem;'>通常 10–40 秒；接口偶发抖动时后端会自动重试，最长约 1–2 分钟，请耐心等待。</span>";
+            };
+            updateStatus();
+            _timer = setInterval(updateStatus, 1000);
+
+            try {
+                const resp = await fetch(backendBase + "/api/generate-report", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ board: board, reportType: reportType, scopeLabel: BOARD_LABEL[board] })
+                });
+                const data = await resp.json();
+                if (!data.ok) throw new Error(data.error || "后端返回错误");
+                badge.className = "ai-badge live";
+                badge.textContent = "真实 Gemma 4 · " + (data.model || "");
+                statusEl.innerHTML = "✅ 分析完成 · 看板：" + (BOARD_LABEL[data.board] || data.board) +
+                    " · 共 " + (data.turns || 0) + " 轮" + (data.outputFile ? " · 已落盘 " + data.outputFile : "");
+                renderTrace(data.trace);
+                reportWrap.innerHTML = '<div class="ai-report">' + renderMarkdown(data.report) + "</div>";
+            } catch (err) {
+                // 后端未启动 / demoMode：给出离线提示，保证演示不中断
+                badge.className = "ai-badge demo";
+                badge.textContent = "演示模式（后端未连接）";
+                statusEl.innerHTML = "⚠️ 未连接到本地后端（" + backendBase + "）。" +
+                    "启动 <code>python backend/report_server.py</code> 并在 .env 配置 GOOGLE_API_KEY 后，" +
+                    "即可在此用真实 Gemma 4 函数调用循环生成三看板报告。";
+                reportWrap.innerHTML = '<div class="ai-report"><p style="color:var(--text-sub)">错误信息：' +
+                    String(err.message || err).replace(/</g, "&lt;") + "</p></div>";
+            } finally {
+                clearInterval(_timer);
+                runBtn.disabled = false;
+                runBtn.textContent = "开始分析";
+            }
+        }
+        runBtn.addEventListener("click", runAnalysis);
+    })();
+    </script>
 </body>
 </html>

@@ -1571,7 +1571,7 @@
       <div class="logo-hex">RDC</div>
       <div>
         <div class="logo-title">REPAIR</div>
-        <div class="logo-sub">数字孪生监控系统</div>
+        <div class="logo-sub">维修修复率监控系统</div>
       </div>
     </div>
 
@@ -1902,20 +1902,20 @@
           <div
             style="background:rgba(0,240,255,0.03);border:1px solid rgba(0,240,255,0.1);border-radius:8px;padding:18px 20px;">
             <div class="settings-section-title">// AI 报告生成</div>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <input id="ai-endpoint" class="glass-input" placeholder="OpenAI 兼容接口地址（自填）" style="width:100%;">
-              <div style="display:flex;gap:8px;">
-                <input id="ai-model-input" class="glass-input" style="flex:1;" placeholder="gemma-4-31b-it"
-                  value="gemma-4-31b-it">
-                <input id="ai-key" class="glass-input" type="password" placeholder="API 密钥" style="flex:1;">
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div class="ai-report-body" style="min-height:60px;line-height:1.7;">
+                三看板的 AI 分析已<strong>统一</strong>到首页的
+                <strong>「AI 智能分析中心」</strong>，由 Gemma 4 原生函数调用循环驱动，
+                不再在各看板单独配置。
               </div>
-              <div style="display:flex;gap:8px;">
-                <button class="btn-glass" onclick="saveAiConfig()">💾 保存</button>
-                <button class="btn-primary-glass" onclick="generateAiReport()">✦ 生成报告</button>
-              </div>
-              <div class="ai-report-body" id="ai-report-out" style="min-height:60px;">
-                <div class="ai-placeholder">// 配置后点击"生成报告"...</div>
-              </div>
+              <a class="btn-primary-glass" href="index.html#ai" style="text-decoration:none;text-align:center;">
+                ✦ 前往 AI 智能分析中心
+              </a>
+              <!-- 兼容旧逻辑：保留隐藏占位，避免历史脚本引用报错 -->
+              <input id="ai-endpoint" type="hidden">
+              <input id="ai-model-input" type="hidden" value="gemma-4-26b-a4b-it">
+              <input id="ai-key" type="hidden">
+              <div id="ai-report-out" style="display:none;"></div>
             </div>
           </div>
 
@@ -3544,7 +3544,7 @@
       if (!key) return showToast('请先输入你的 API Key');
       let endpoint = document.getElementById('ai-endpoint').value.trim();
       if (!endpoint.startsWith('http')) return showToast('请先在设置中填入兼容 OpenAI Chat 格式的 AI 接口地址');
-      const model = document.getElementById('ai-model-input').value || 'gemma-4-31b-it';
+      const model = document.getElementById('ai-model-input').value || 'gemma-4-26b-a4b-it';
 
       const outBox = document.getElementById('ai-report-out');
       if (outBox) outBox.innerHTML = '<div class="ai-thinking">AI 分析中，正在调用大模型...</div>';
@@ -3733,7 +3733,7 @@ ${deptRows.map(d => `| ${d.label} | ${d.dayIn} | ${d.dayOut} | ${d.dayRate} | ${
 
       const detailMd = calculateTeamsFacts() || '';
 
-      const markdownBody = `${isTest ? '【推送测试】' : ''}**维修中心 · 数字孪生看板自动播报**
+      const markdownBody = `${isTest ? '【推送测试】' : ''}**维修中心 · 维修修复率看板自动播报**
 **推送时间：** ${nowStr}　　**待修WIP：** ${wipTotal} 台
 
 ---
