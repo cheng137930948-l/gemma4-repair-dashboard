@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASH · Digital Twin Repair Monitor</title>
+  <title>RDC · Digital Twin Repair Monitor</title>
 <style>
     /* ═══════════════════════════════════════════════════
    DIGITAL TWIN — CYBERPUNK GLASSMORPHISM
@@ -1567,7 +1567,7 @@
   <!-- ════════ HEADER ════════ -->
   <header class="header">
     <div class="logo-box">
-      <div class="logo-hex">ASH</div>
+      <div class="logo-hex">RDC</div>
       <div>
         <div class="logo-title">REPAIR</div>
         <div class="logo-sub">数字孪生监控系统</div>
@@ -1878,12 +1878,12 @@
             <div class="bind-bar" style="gap:5px;padding:4px 10px;">
               <span class="bind-dot" id="bind-dot-ash"></span>
               <span id="bind-name-ash"
-                style="font-size:0.85rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">ASH
+                style="font-size:0.85rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">电子厂
                 未绑定</span>
               <button class="btn-unbind" id="btn-unbind-ash" onclick="unbindFileAsh()"
                 style="display:none;font-size:0.8rem;">✕断开</button>
             </div>
-            <button class="btn-glass" onclick="bindFileAsh()">⬡ 绑定 ASH</button>
+            <button class="btn-glass" onclick="bindFileAsh()">⬡ 绑定电子厂</button>
             <button class="btn-glass" onclick="document.getElementById('fileInput').click()">▲ 手动导入</button>
             <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
               <span style="font-family:'Share Tech Mono',monospace;font-size:0.82rem;color:var(--t3);">自动同步</span>
@@ -1994,7 +1994,7 @@
   <script src="./libs/xlsx.full.min.js"></script>
   <script>
     /* ============================================================
-       ASH Repair Dashboard – app.js v4
+       RDC Repair Dashboard – app.js v4
        Data: Excel import, Shared File Polling, AI Report, Teams Push
        ============================================================ */
 
@@ -2003,7 +2003,7 @@
     let currentTab = 'daily';
     // ── 双文件 Handle（各自独立，支持跨目录）──
     let fileHandleSys = null;  // 系统厂修复率文件
-    let fileHandleAsh = null;  // ASH Repair Detail 文件
+    let fileHandleAsh = null;  // 电子厂 Repair Detail 文件
     let fileHandle = null;  // 兼容旧引用，等于 fileHandleSys
     let fileHandles = [];    // 兼容旧引用，聚合两个handle
     let refreshTimer = null;
@@ -2253,7 +2253,7 @@
       showToast('已解除系统厂文件绑定');
     }
 
-    // ── ASH 绑定 ──
+    // ── 电子厂 绑定 ──
     async function bindFileAsh() { await pickAndBindRepairFile('elec'); }
 
     async function unbindFileAsh() {
@@ -2262,7 +2262,7 @@
       try { const db = await openIDB(); db.transaction('store', 'readwrite').objectStore('store').delete('ashFileHandle'); } catch (e) { }
       await _mergeAndRender();
       if (!fileHandleSys && !fileHandleAsh) stopAutoRefresh();
-      showToast('已解除 ASH 文件绑定');
+      showToast('已解除 电子厂 文件绑定');
     }
 
     // 兼容旧调用
@@ -2375,7 +2375,7 @@
         try { await processFile(await fileHandleSys.getFile(), 'sys'); ok++; } catch (e) { console.error('[repair-rate] refresh sys failed', e); showToast('⚠ 系统厂共享路径暂不可访问，已保留历史数据'); }
       }
       if (fileHandleAsh && await verifyPermission(fileHandleAsh, false)) {
-        try { await processFile(await fileHandleAsh.getFile(), 'elec'); ok++; } catch (e) { console.error('[repair-rate] refresh ash failed', e); showToast('⚠ ASH共享路径暂不可访问，已保留历史数据'); }
+        try { await processFile(await fileHandleAsh.getFile(), 'elec'); ok++; } catch (e) { console.error('[repair-rate] refresh elec failed', e); showToast('⚠ 电子厂共享路径暂不可访问，已保留历史数据'); }
       }
       if (!fileHandleSys && await restoreRepairServerBinding('sys')) ok++;
       if (!fileHandleAsh && await restoreRepairServerBinding('elec')) ok++;
@@ -2408,7 +2408,7 @@
         btn.style.display = 'inline-block';
       } else {
         dot.classList.remove('active', 'online');
-        name.textContent = 'ASH'; name.title = '';
+        name.textContent = '电子厂'; name.title = '';
         btn.style.display = 'none';
       }
     }
@@ -2481,7 +2481,7 @@
           }
         };
 
-        // 恢复 ASH（稍微延迟避免IDB事务冲突）
+        // 恢复 电子厂（稍微延迟避免IDB事务冲突）
         setTimeout(async () => {
           try {
             const db2 = await openIDB();
@@ -2500,10 +2500,10 @@
                     startAutoRefresh();
                   } catch (err) {
                     console.error('[repair-rate] restore ash failed', err);
-                    showToast('⚠ ASH共享路径暂不可访问，绑定已保留');
+                    showToast('⚠ 电子厂共享路径暂不可访问，绑定已保留');
                   }
                 } else {
-                  showToast('⚠ ASH文件需要重新授权，绑定记录已保留');
+                  showToast('⚠ 电子厂文件需要重新授权，绑定记录已保留');
                 }
               }
             };
@@ -3675,7 +3675,7 @@
         `- 【${deptLabel[a.dept]}】工单：**${a.workOrder}** | 不良描述：**${a.desc}** | 数量：**${a.count} 片**`
       ).join('\n');
 
-      const msg = `🚨 **重复不良预警 · ASH 维修中心**\n检测到以下工单同一不良描述 ≥ 3 片：\n\n${lines}\n\n📊 [点击打开 ASH 维修看板](${window.location.href})`;
+      const msg = `🚨 **重复不良预警 · 维修中心**\n检测到以下工单同一不良描述 ≥ 3 片：\n\n${lines}\n\n📊 [点击打开 维修看板](${window.location.href})`;
 
       const teamsUrl = document.getElementById('teams-webhook').value;
       const wxworkUrl = document.getElementById('wxwork-webhook').value;
@@ -3732,13 +3732,13 @@ ${deptRows.map(d => `| ${d.label} | ${d.dayIn} | ${d.dayOut} | ${d.dayRate} | ${
 
       const detailMd = calculateTeamsFacts() || '';
 
-      const markdownBody = `${isTest ? '【推送测试】' : ''}**ASH 维修中心 · 数字孪生看板自动播报**
+      const markdownBody = `${isTest ? '【推送测试】' : ''}**维修中心 · 数字孪生看板自动播报**
 **推送时间：** ${nowStr}　　**待修WIP：** ${wipTotal} 台
 
 ---
 ${deptTable}
 ${detailMd ? '---\n' + detailMd : ''}---
-📊 **看板链接：** [点击打开 ASH 维修看板](${dashboardUrl})`;
+📊 **看板链接：** [点击打开 维修看板](${dashboardUrl})`;
 
       return markdownBody;
     }
@@ -3752,9 +3752,9 @@ ${detailMd ? '---\n' + detailMd : ''}---
         "@type": "MessageCard",
         "@context": "http://schema.org/extensions",
         "themeColor": "5c5fc8",
-        "summary": "ASH 维修中心定时报告",
+        "summary": "维修中心定时报告",
         "sections": [{
-          "activityTitle": "⚙️ ASH 维修中心自动数据播报",
+          "activityTitle": "⚙️ 维修中心自动数据播报",
           "activitySubtitle": isTest ? "【自动推送测试】" + new Date().toLocaleString('zh-CN') : "【定时推送】" + new Date().toLocaleString('zh-CN'),
           "text": markdownBody,
           "markdown": true
@@ -4092,7 +4092,7 @@ ${detailMd ? '---\n' + detailMd : ''}---
       const XLSXLib = await ensureXlsxReady();
       const ws = XLSXLib.utils.aoa_to_sheet([['工单', '入库日期', '维修员工', '描述', '原因', '状态', '完成日期'], ...rows]);
       const wb = XLSXLib.utils.book_new(); XLSXLib.utils.book_append_sheet(wb, ws, 'Detail');
-      XLSXLib.writeFile(wb, `ASH_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSXLib.writeFile(wb, `维修明细_${new Date().toISOString().slice(0, 10)}.xlsx`);
     }
 
     /* ── 设置弹窗 ── */
