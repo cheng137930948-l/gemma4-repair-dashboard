@@ -70,7 +70,8 @@ window.GemmaAdapter = {
       att:   data?.attendance?.currentData || data?.attendance || {},
       trend: mods.module1?.currentData || mods.module1 || {},
       staff: mods.module3?.currentData || mods.module3 || {},
-      wip
+      wip,
+      wipBoard: data?.wipBoard || data?.wipDemo || null   // 真实接入用 wipBoard，演示用 wipDemo
     };
   },
   _toolsIntegrated(ctx) {
@@ -107,6 +108,20 @@ window.GemmaAdapter = {
                  data: { plan, actual, rate: self._pct(actual, plan), day: self._num(s.dayShiftActual), night: self._num(s.nightShiftActual), absentNames, lateNames } };
       },
       get_wip() {
+        const b = ctx.wipBoard;
+        if (b && self._num(b.total) > 0) {
+          const total = self._num(b.total);
+          const high = total >= 20;
+          const overdue = Array.isArray(b.overdue) ? b.overdue : [];
+          const trend = (b.trend || []).map(v => self._num(v));
+          const rising = trend.length >= 2 && trend[trend.length - 1] > trend[0];
+          const byModel = Array.isArray(b.byModel) ? b.byModel : [];
+          const aging = Array.isArray(b.aging) ? b.aging : [];
+          return {
+            summary: `待修WIP ${total}件${high ? '(偏高)' : ''}${overdue.length ? `，超期 ${overdue.length} 件` : ''}`,
+            data: { board: true, total, high, overdue, trend, rising, byModel, aging }
+          };
+        }
         const wip = ctx.wip ? String(ctx.wip) : '';
         if (!wip) return { summary: '无 WIP 数据', data: null };
         const high = self._num(wip) >= 10;
@@ -198,9 +213,23 @@ ${persons}`;
       detailBlock = `*   暂无明细（不良现象 / 机种）数据。绑定"维修明细 XLSX"或在模块 detailMap 中填入「板卡料号 + 错误描述」后，可自动按「维修员 × 机种 × 不良现象」下钻分析。`;
     }
 
+    let wipBlock;
+    if (wp && wp.board) {
+      let b = `*   **待修总量**：当前待修 WIP **${wp.total}** 件，${wp.high ? '已超过 20 件预警线，存在积压风险 ⚠️' : '处于可控区间'}。`;
+      if (wp.trend.length) b += `\n*   **积压趋势**：近 ${wp.trend.length} 日 ${wp.trend.join(' → ')}（${wp.rising ? '持续积压，需加快消化' : '趋于消化'}）。`;
+      if (wp.byModel.length) b += `\n*   **机种分布**：${wp.byModel.slice(0, 3).map(([k, v]) => `${k} ${v} 件`).join('、')}，建议优先备料与人力倾斜。`;
+      if (wp.aging.length) b += `\n*   **老化分布**：${wp.aging.map(([k, v]) => `${k} ${v} 件`).join('、')}。`;
+      if (wp.overdue.length) b += `\n*   **超期预警**：**${wp.overdue.length}** 件超过 7 天未修 —— ${wp.overdue.slice(0, 3).map(o => `${o['工单'] || '—'}（${o['机种'] || '—'}，已待修 ${o['待修天数'] || '?'} 天，${o['不良'] || '—'}）`).join('；')}，建议立即催办闭环。`;
+      wipBlock = b;
+    } else if (wp && wp.wip) {
+      wipBlock = `*   当前待修 WIP 约 ${wp.wip} 件，${wp.high ? '偏高，建议优先消化在制工单或临时增援夜班' : '处于健康水位'}。`;
+    } else {
+      wipBlock = `*   暂无待修 WIP 数据。在系统设置的看板模块中填入「待修 WIP」数量，或接入工单状态数据源后，可自动监控待修积压与老化风险。`;
+    }
+
     let advice = `*   建议通过 Gemma 4 对历史重复工单聚类，提前预防高频故障项。`;
     if (dd && dd.total && dd.topDefects.length) advice = `*   高频不良「**${dd.topDefects[0][0]}**」已累计 ${dd.topDefects[0][1]} 片，建议针对该现象组织专题根因分析并固化 SOP / 防呆措施。\n` + advice;
-    if (wp) advice = `*   当前 WIP 约 ${wp.wip} 件，${wp.high ? '存在积压风险，建议临时增援夜班或优先处理在制工单' : '处于健康水位，维持现有排班即可'}。\n` + advice;
+    if (wp && (wp.high || (wp.board && wp.overdue.length))) advice = `*   待修 WIP 偏高或存在超期工单，建议每日盯办老化清单、对超 7 天工单专人催办，并评估夜班增援。\n` + advice;
 
     const text = `### Gemma 4 智能维修分析报告
 
@@ -213,10 +242,13 @@ ${staffBlock}
 **3. 维修明细洞察（不良现象 × 机种）**
 ${detailBlock}
 
-**4. 出勤与排班**
+**4. 待修 WIP 管理**
+${wipBlock}
+
+**5. 出勤与排班**
 ${attBlock}
 
-**5. 改善建议**
+**6. 改善建议**
 ${advice}
 
 *注意：此报告由 Gemma 4 (Demo Mode) 于 ${this._ts()} 经多工具编排自动生成。*`;
@@ -280,11 +312,19 @@ ${advice}
       return { text: r, trace };
     }
 
-    // WIP
-    if (this._hit(q, ['wip', 'WIP', '积压', '在制', '待修', '堆积'])) {
+    // WIP / 待修
+    if (this._hit(q, ['wip', 'WIP', '积压', '在制', '待修', '堆积', '老化', '超期', '未修'])) {
       const d = this._call(trace, tools, 'get_wip', {});
-      if (!d) return { text: '当前没有 WIP（在制）数据。', trace };
-      return { text: `当前 WIP 约 **${d.wip}** 件，${d.high ? '已偏高 ⚠️，建议优先消化在制工单或临时增援夜班。' : '处于健康水位 ✅，维持现有节奏即可。'}`, trace };
+      if (!d) return { text: '当前没有待修 WIP 数据。可在系统设置中填入「待修 WIP」数量，或接入工单状态数据源后自动监控。', trace };
+      if (d.board) {
+        let r = `当前待修 WIP **${d.total}** 件，${d.high ? '已超 20 件预警线 ⚠️' : '处于可控区间 ✅'}。`;
+        if (d.trend.length) r += `近 ${d.trend.length} 日 ${d.trend.join('→')}（${d.rising ? '持续积压' : '趋于消化'}）。`;
+        if (d.byModel.length) r += `\n机种分布：${d.byModel.slice(0, 3).map(([k, v]) => `${k} ${v}件`).join('、')}。`;
+        if (d.aging.length) r += `\n老化分布：${d.aging.map(([k, v]) => `${k} ${v}件`).join('、')}。`;
+        if (d.overdue.length) r += `\n⚠️ ${d.overdue.length} 件超 7 天未修：${d.overdue.slice(0, 3).map(o => `${o['工单']}（${o['机种']}/${o['待修天数']}天）`).join('；')}，建议立即催办闭环。`;
+        return { text: r, trace };
+      }
+      return { text: `当前待修 WIP 约 **${d.wip}** 件，${d.high ? '已偏高 ⚠️，建议优先消化在制工单或临时增援夜班。' : '处于健康水位 ✅，维持现有节奏即可。'}`, trace };
     }
 
     // 排班建议
@@ -292,7 +332,8 @@ ${advice}
       const wp = this._call(trace, tools, 'get_wip', {});
       const at = this._call(trace, tools, 'get_attendance', {});
       const tips = [];
-      if (wp && wp.high) tips.push('WIP 偏高，建议优先处理在制工单并评估夜班增援');
+      if (wp && wp.board && wp.overdue.length) tips.push(`待修 WIP ${wp.total} 件且有 ${wp.overdue.length} 件超 7 天未修，建议专人催办老化工单并评估夜班增援`);
+      else if (wp && wp.high) tips.push('待修 WIP 偏高，建议优先处理在制工单并评估夜班增援');
       if (at.absentNames.length) tips.push(`存在 ${at.absentNames.length} 人缺勤，建议安排顶岗以稳定产出`);
       tips.push('对高频重复工单做聚类分析，提前备料、预防性维护');
       return { text: `**改善建议**：\n${tips.map((t, i) => `${i + 1}. ${t}`).join('\n')}`, trace };

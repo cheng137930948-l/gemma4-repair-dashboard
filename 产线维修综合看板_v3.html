@@ -1297,7 +1297,7 @@
         <button class="ai-chip" data-q="今天出勤情况怎么样？">出勤情况</button>
         <button class="ai-chip" data-q="今日产出谁最高？">产出TOP</button>
         <button class="ai-chip" data-q="近期高频不良现象有哪些？">不良明细</button>
-        <button class="ai-chip" data-q="当前WIP高不高？">WIP分析</button>
+        <button class="ai-chip" data-q="当前待修WIP和老化风险如何？">待修WIP</button>
         <button class="ai-chip" data-q="有什么排班建议？">排班建议</button>
       </div>
       <div style="display:flex;gap:8px;padding:6px 10px 4px;">
@@ -1957,6 +1957,18 @@
         module2:{key:'module2',title:'维修趋势 (DEMO-B)',chartType:'line',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'8',manualJson:JSON.stringify({labels:["05-01","05-02","05-03","05-04","05-05","05-06","05-07"],values:[30,35,32,40,38,42,45],detailMap:{},meta:'DEMO数据',wip:'8'},null,2),currentData:null},
         module3:{key:'module3',title:'今日个人产出 (DEMO)',chartType:'bar',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'',manualJson:JSON.stringify({labels:["张三","李四","王五","赵六"],values:[15,12,10,8],detailMap:{"张三":[{板卡料号:"KSK-100",错误描述:"不开机",数量:5},{板卡料号:"KSK-100",错误描述:"黑屏",数量:4},{板卡料号:"ABC-200",错误描述:"无显示",数量:3},{板卡料号:"XYZ-300",错误描述:"自动重启",数量:3}],"李四":[{板卡料号:"KSK-100",错误描述:"不开机",数量:4},{板卡料号:"ABC-200",错误描述:"黑屏",数量:4},{板卡料号:"DEF-400",错误描述:"触摸失灵",数量:4}],"王五":[{板卡料号:"ABC-200",错误描述:"无显示",数量:4},{板卡料号:"XYZ-300",错误描述:"自动重启",数量:3},{板卡料号:"KSK-100",错误描述:"不开机",数量:3}],"赵六":[{板卡料号:"DEF-400",错误描述:"触摸失灵",数量:3},{板卡料号:"KSK-100",错误描述:"黑屏",数量:3},{板卡料号:"ABC-200",错误描述:"无显示",数量:2}]},meta:'DEMO数据'},null,2),currentData:null},
         module4:{key:'module4',title:'今日个人产出 (DEMO-B)',chartType:'bar',sourceType:'manual-json',sourceUrl:'',boundFileName:'',refreshSec:0,wip:'',manualJson:JSON.stringify({labels:["王五","李四","张三","赵六"],values:[14,11,9,7],detailMap:{},meta:'DEMO数据'},null,2),currentData:null}
+      },
+      // 待修 WIP 演示数据（DEMO）。真实接入后由工单状态数据源替换此结构即可。
+      wipDemo: {
+        total: 28,
+        byModel: [["KSK-100",11],["ABC-200",8],["XYZ-300",5],["DEF-400",4]],
+        aging: [["≤1天",14],["2-3天",8],["4-7天",4],[">7天",2]],
+        trend: [18,20,23,25,28],
+        overdue: [
+          { 工单:"WO-20603-014", 机种:"KSK-100", 待修天数:9, 不良:"不开机" },
+          { 工单:"WO-20531-077", 机种:"DEF-400", 待修天数:8, 不良:"触摸失灵" }
+        ],
+        meta: 'DEMO数据'
       }
     };
 
