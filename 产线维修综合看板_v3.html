@@ -1499,8 +1499,8 @@
         const d=defectOf[model]||'其他'; const dv=(a>=8)?(model==='KSK-100'?'不开机':'触摸失灵'):(i%3===1?'黑屏':d);
         orders.push({工单:wo(a),机种:model,状态:'待修',进站日期:fmt(a),完成日期:'',不良:dv});
       }));
-      // 已修 / 报废：用于修复率与积压趋势回溯（已修 8 / 报废 2 → 修复率 80%）
-      const done=[['KSK-100',6,1,'已修'],['KSK-100',5,2,'已修'],['ABC-200',7,3,'已修'],['XYZ-300',5,2,'已修'],['DEF-400',6,4,'已修'],['ABC-200',8,5,'已修'],['KSK-100',4,1,'已修'],['XYZ-300',7,3,'已修'],['DEF-400',9,6,'报废'],['KSK-100',11,7,'报废']];
+      // 已修 / 报废：用于修复率与积压趋势回溯（已修 13 / 报废 3 → 修复率 81%，与修复率看板口径对齐）
+      const done=[['KSK-100',6,1,'已修'],['KSK-100',5,2,'已修'],['ABC-200',7,3,'已修'],['XYZ-300',5,2,'已修'],['DEF-400',6,4,'已修'],['ABC-200',8,5,'已修'],['KSK-100',4,1,'已修'],['XYZ-300',7,3,'已修'],['ABC-200',6,2,'已修'],['XYZ-300',4,1,'已修'],['DEF-400',8,3,'已修'],['KSK-100',7,2,'已修'],['ABC-200',5,1,'已修'],['DEF-400',9,6,'报废'],['KSK-100',11,7,'报废'],['XYZ-300',10,5,'报废']];
       done.forEach(([model,inD,outD,st])=>orders.push({工单:wo(inD),机种:model,状态:st,进站日期:fmt(inD),完成日期:fmt(outD),不良:defectOf[model]||'其他'}));
       return orders;
     }
@@ -1527,7 +1527,7 @@
       const trend=[];
       for(let i=4;i>=0;i--){const day=new Date(today-i*dayMs);let c=0;orders.forEach(o=>{const inD=pDate(o.进站日期||o.创建日期||o.日期);if(!inD||inD>day)return;const outD=pDate(o.完成日期||o.出站日期);if((isFixed(stOf(o))||isScrap(stOf(o)))&&outD&&outD<=day)return;c++;});trend.push(c);}
       const processed=fixed.length+scrap.length;
-      const repairRate=processed?Math.round(fixed.length/processed*1000)/10:null;
+      const repairRate=processed?Math.round(fixed.length/processed*100):null;
       return {total:pend.length,byModel,aging,overdue,trend,repairRate,fixed:fixed.length,scrap:scrap.length,meta:'由工单状态数据源实时计算'};
     }
     function buildAIPayload(){

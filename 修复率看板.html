@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RDC · Digital Twin Repair Monitor</title>
+  <title>修复率看板 - Gemma 4 Hackathon Demo</title>
 <style>
     /* ═══════════════════════════════════════════════════
    DIGITAL TWIN — CYBERPUNK GLASSMORPHISM
@@ -1562,7 +1562,8 @@
   <div class="hex-stream" id="hex-l"></div>
   <div class="hex-stream" id="hex-r"></div>
 
-  <!-- 背景 Canvas -->
+  <!-- 背景 Canvas（内联粒子背景，由 initBgParticles 驱动，无外部依赖） -->
+  <canvas id="bgCanvas"></canvas>
 
   <!-- ════════ HEADER ════════ -->
   <header class="header">
