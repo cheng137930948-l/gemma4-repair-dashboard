@@ -539,7 +539,7 @@ function getUserEmail(name){
   // 1. 精确匹配
   const exact=map.find(u=>u.name.trim().toLowerCase()===n);
   if(exact) return exact.email;
-  // 2. 用邮箱前缀匹配（XUEHOU → xuehou@... → 侯雪）
+  // 2. 用邮箱前缀匹配（如 ZHANGSAN → zhangsan@... → 张三）
   const byEmail=map.find(u=>{
     const prefix=u.email.split('@')[0].toLowerCase();
     return prefix===n||n===prefix;

@@ -2018,7 +2018,7 @@
     let lastPushDate = null;
 
     const STORAGE_KEY = 'ash_repair_data_v2';
-    const BINDING_API = 'http://127.0.0.1:8787/api/bindings';
+    const BINDING_API = (window.RDC_BINDING_API || '/api/bindings'); // 内网启用绑定服务时由 window.RDC_BINDING_API 注入实际地址；公开 Demo 不调用（见 RDC_ENABLE_BINDING_SERVER 门控）
     const SMT_REPAIRERS = ['周敏', '吴杰']; // DEMO 维修员（脱敏）
     let xlsxReadyPromise = null;
 
