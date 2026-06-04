@@ -346,7 +346,7 @@
         <p class="subtitle">面向工业维修场景的数字化智能管理系统 - 参赛演示版 (Demo Mode)。<br>由 Google Gemma 4 大模型驱动，实现维修数据的实时洞察与预测分析。</p>
         <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem; font-size: 0.9rem;">
             <span style="background: rgba(16, 185, 129, 0.1); color: var(--accent); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.2);">Model: Gemma 4</span>
-            <span style="background: rgba(59, 130, 246, 0.1); color: var(--primary); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(59, 130, 246, 0.2);">Mode: Offline Demo</span>
+            <span style="background: rgba(59, 130, 246, 0.1); color: var(--primary); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(59, 130, 246, 0.2);">AI: Real Gemma 4 (Live / Replay)</span>
             <span style="background: rgba(248, 250, 252, 0.05); color: var(--text-sub); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(248, 250, 252, 0.1);">Data: Sanitized Demo</span>
         </div>
     </header>
@@ -402,7 +402,7 @@
     <div class="ai-modal-mask" id="aiModalMask">
         <div class="ai-modal">
             <div class="ai-modal-head">
-                <h3>🤖 AI 智能分析中心 <span id="aiModeBadge" class="ai-badge demo">演示模式</span></h3>
+                <h3>🤖 AI 智能分析中心 <span id="aiModeBadge" class="ai-badge demo">Gemma 4 · 待分析</span></h3>
                 <button class="ai-modal-close" id="aiModalClose">&times;</button>
             </div>
             <div class="ai-modal-body">
@@ -507,6 +507,41 @@
             traceWrap.innerHTML = h;
         }
 
+        // 统一渲染一次分析结果（实时调用 / 离线回放共用同一渲染路径）
+        function renderResult(data, opts) {
+            opts = opts || {};
+            badge.className = "ai-badge live";
+            if (opts.replay) {
+                badge.textContent = "真实 Gemma 4 · 离线回放 · " + (data.model || "");
+                statusEl.innerHTML = "✅ 已加载真实跑批结果（离线回放）· 看板：" +
+                    (BOARD_LABEL[data.board] || data.board) + " · 共 " + (data.turns || 0) + " 轮函数调用" +
+                    (data.logFile ? " · 运行日志 " + data.logFile : "") +
+                    "<br><span style='font-size:.82rem;'>本页为静态托管（GitHub Pages），无法实时运行 Python 后端，" +
+                    "故回放此前一次<b>真实 Gemma 4 跑批</b>的报告与函数调用轨迹（报告、trace、运行日志均为真实输出）。" +
+                    "本地启动后端即为实时调用。</span>";
+            } else {
+                badge.textContent = "真实 Gemma 4 · " + (data.model || "");
+                statusEl.innerHTML = "✅ 分析完成 · 看板：" + (BOARD_LABEL[data.board] || data.board) +
+                    " · 共 " + (data.turns || 0) + " 轮" + (data.outputFile ? " · 已落盘 " + data.outputFile : "");
+            }
+            renderTrace(data.trace);
+            reportWrap.innerHTML = '<div class="ai-report">' + renderMarkdown(data.report) + "</div>";
+        }
+
+        // 加载随站点发布的真实跑批缓存：先精确匹配报告类型，再回退到日报
+        async function loadReplay(board, reportType) {
+            const urls = ["replay/" + board + "_" + reportType + ".json", "replay/" + board + "_daily.json"];
+            for (const url of urls) {
+                try {
+                    const r = await fetch(url, { cache: "no-store" });
+                    if (!r.ok) continue;
+                    const d = await r.json();
+                    if (d && d.report) return d;
+                } catch (e) { /* 尝试下一个候选 */ }
+            }
+            return null;
+        }
+
         let _timer = null;
         async function runAnalysis() {
             runBtn.disabled = true;
@@ -532,21 +567,22 @@
                 });
                 const data = await resp.json();
                 if (!data.ok) throw new Error(data.error || "后端返回错误");
-                badge.className = "ai-badge live";
-                badge.textContent = "真实 Gemma 4 · " + (data.model || "");
-                statusEl.innerHTML = "✅ 分析完成 · 看板：" + (BOARD_LABEL[data.board] || data.board) +
-                    " · 共 " + (data.turns || 0) + " 轮" + (data.outputFile ? " · 已落盘 " + data.outputFile : "");
-                renderTrace(data.trace);
-                reportWrap.innerHTML = '<div class="ai-report">' + renderMarkdown(data.report) + "</div>";
+                renderResult(data, { replay: false });
             } catch (err) {
-                // 后端未启动 / demoMode：给出离线提示，保证演示不中断
-                badge.className = "ai-badge demo";
-                badge.textContent = "演示模式（后端未连接）";
-                statusEl.innerHTML = "⚠️ 未连接到本地后端（" + backendBase + "）。" +
-                    "启动 <code>python backend/report_server.py</code> 并在 .env 配置 GOOGLE_API_KEY 后，" +
-                    "即可在此用真实 Gemma 4 函数调用循环生成三看板报告。";
-                reportWrap.innerHTML = '<div class="ai-report"><p style="color:var(--text-sub)">错误信息：' +
-                    String(err.message || err).replace(/</g, "&lt;") + "</p></div>";
+                // 后端未连接（如 GitHub Pages 静态托管）：回放此前真实跑批结果，
+                // 让公开演示也能看到真·Gemma 4 的报告 + 函数调用轨迹，而非只看到报错。
+                const replay = await loadReplay(board, reportType);
+                if (replay) {
+                    renderResult(replay, { replay: true });
+                } else {
+                    badge.className = "ai-badge demo";
+                    badge.textContent = "演示模式（后端未连接）";
+                    statusEl.innerHTML = "⚠️ 未连接到本地后端（" + backendBase + "），且未找到可回放的跑批缓存。" +
+                        "启动 <code>python backend/report_server.py</code> 并在 .env 配置 GOOGLE_API_KEY 后，" +
+                        "即可在此用真实 Gemma 4 函数调用循环生成三看板报告。";
+                    reportWrap.innerHTML = '<div class="ai-report"><p style="color:var(--text-sub)">错误信息：' +
+                        String(err.message || err).replace(/</g, "&lt;") + "</p></div>";
+                }
             } finally {
                 clearInterval(_timer);
                 runBtn.disabled = false;

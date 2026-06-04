@@ -23,6 +23,9 @@ node_modules/
 .DS_Store
 Thumbs.db
 
+# 本地 IDE / 预览配置（不入公开仓库）
+.claude/
+
 # Backup files
 *crash*
 *takeover*
