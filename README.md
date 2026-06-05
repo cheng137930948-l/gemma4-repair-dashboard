@@ -4,7 +4,8 @@
 
 本项目是参赛演示版本，默认使用脱敏演示数据，可通过本地浏览器直接打开，也可部署到 GitHub Pages 作为静态页面在线演示。
 
-> 🔗 在线演示（GitHub Pages）：`https://cheng137930948-l.github.io/gemma4-repair-dashboard/`
+> 🔗 在线演示（GitHub Pages）：[`https://cheng137930948-l.github.io/gemma4-repair-dashboard/`](https://cheng137930948-l.github.io/gemma4-repair-dashboard/)
+> 🎬 演示视频（5 分钟）：[▶ 点击观看](https://github.com/cheng137930948-l/gemma4-repair-dashboard/releases/download/v1.0-demo/default.mp4)
 > （部署后请实测三个中文文件名页面均可打开；若 Pages 对中文路径异常，见文末"常见问题"。）
 
 ## 核心功能
